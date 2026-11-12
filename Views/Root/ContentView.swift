@@ -12,6 +12,7 @@ struct ContentView: View {
     @EnvironmentObject private var videoLibraryManager: VideoLibraryManager
     @EnvironmentObject private var videoPlayback: VideoPlaybackController
     @EnvironmentObject private var appleMusic: AppleMusicService
+    @EnvironmentObject private var spotify: SpotifyService
     @EnvironmentObject private var downloadManager: DownloadManager
     @EnvironmentObject private var eqController: EQController
     @EnvironmentObject private var smartPlaylistsManager: SmartPlaylistsManager
@@ -157,6 +158,14 @@ struct ContentView: View {
             updateScreen()
         }
         .onChange(of: appleMusic.isPlaying) { _ in updateScreen() }
+        // Spotify: login callback, settings and foreground/background.
+        .onOpenURL { url in spotify.handle(url) }
+        .onChange(of: settingsManager.spotifyEnabled) { _ in configureSpotify() }
+        .onChange(of: settingsManager.spotifyClientID) { _ in configureSpotify() }
+        .onChange(of: scenePhase) { phase in
+            guard settingsManager.spotifyEnabled else { return }
+            if phase == .active { spotify.appDidBecomeActive() } else { spotify.appWillResignActive() }
+        }
         .onChange(of: settingsManager.appleMusicEnabled) { enabled in
             // Turning it off stops Apple Music and leaves its tab.
             if !enabled {
@@ -211,12 +220,24 @@ struct ContentView: View {
             playerManager.configureFavorites(favoritesManager)
             videoPlayback.configure(library: videoLibraryManager, music: playerManager)
             appleMusic.configure(music: playerManager, video: videoPlayback)
+            configureSpotify()
             playerManager.configureDownloads(downloadManager)
             if ProcessInfo.processInfo.arguments.contains("--debug-fake-track")
                 || UserDefaults.standard.bool(forKey: "debug_fake_track") {
                 playerManager.loadDebugFakeTrack()
                 showFullPlayer = true
             }
+        }
+    }
+
+    /// Off → no Spotify objects at all; on → set up with the user's Client ID.
+    private func configureSpotify() {
+        if settingsManager.spotifyEnabled {
+            spotify.configure(clientID: settingsManager.spotifyClientID, music: playerManager,
+                              video: videoPlayback, appleMusic: appleMusic)
+        } else {
+            spotify.shutDown()
+            if selectedTab == .spotify { selectedTab = .library }
         }
     }
 
@@ -275,6 +296,8 @@ struct ContentView: View {
             VideosView()
         case .appleMusic:
             AppleMusicView()
+        case .spotify:
+            SpotifyView()
         case .more:
             MoreView()
         }
@@ -333,5 +356,5 @@ struct ContentView: View {
 }
 
 enum AppTab {
-    case favorites, playlists, library, videos, appleMusic, search, more
+    case favorites, playlists, library, videos, appleMusic, spotify, search, more
 }

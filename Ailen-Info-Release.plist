@@ -49,6 +49,21 @@
 	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>Spotify login callback</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>ailen-spotify</string>
+			</array>
+		</dict>
+	</array>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>spotify</string>
+	</array>
 	<key>NSAppleMusicUsageDescription</key>
 	<string>Ailen usa tu biblioteca de Apple Music para mostrar y reproducir tus listas, álbumes y canciones.</string>
 	<key>UIBackgroundModes</key>

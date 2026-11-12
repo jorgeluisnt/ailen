@@ -10,6 +10,7 @@ struct MoreView: View {
     @EnvironmentObject private var localLibraryManager: LocalLibraryManager
     @EnvironmentObject private var videoLibraryManager: VideoLibraryManager
     @EnvironmentObject private var videoPlayback: VideoPlaybackController
+    @EnvironmentObject private var spotify: SpotifyService
 
     @State private var showClearLibraryAlert = false
     @State private var showClearVideosAlert = false
@@ -220,6 +221,10 @@ struct MoreView: View {
                 }
                 .padding(.horizontal, DS.Spacing.md)
                 .padding(.vertical, DS.Spacing.md)
+
+                Divider().background(tokens.hairline).padding(.leading, 56)
+
+                spotifySettings
 
             }
         }
@@ -593,6 +598,67 @@ struct MoreView: View {
                 }
             }
         }
+    }
+
+    /// Spotify: on/off, the user's Client ID and how to get one.
+    private var spotifySettings: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.sm) {
+            HStack(spacing: DS.Spacing.md) {
+                iconBadge(systemName: "dot.radiowaves.left.and.right", color: tokens.accent)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Spotify")
+                        .font(DS.Typography.body)
+                        .foregroundColor(tokens.textPrimary)
+                    Text("Controla la app de Spotify de este dispositivo desde Ailen. Necesita Spotify Premium y la app de Spotify. Sin ecualizador ni datos de calidad.")
+                        .font(DS.Typography.caption)
+                        .foregroundColor(tokens.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer()
+                Toggle("", isOn: $settingsManager.spotifyEnabled)
+                    .labelsHidden()
+                    .tint(tokens.highlightColor)
+                    .onChange(of: settingsManager.spotifyEnabled) { _ in
+                        Haptics.selection()
+                        settingsManager.save()
+                    }
+            }
+            if settingsManager.spotifyEnabled {
+                TextField("Client ID de tu app de Spotify", text: $settingsManager.spotifyClientID)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .font(.system(.footnote, design: .monospaced))
+                    .padding(DS.Spacing.sm)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(tokens.surface))
+                    .onSubmit { settingsManager.save() }
+                    .onChange(of: settingsManager.spotifyClientID) { _ in settingsManager.save() }
+                    .padding(.leading, 40)
+                DisclosureGroup("Cómo obtener el Client ID") {
+                    Text("""
+                    1. Entra en developer.spotify.com/dashboard con tu cuenta Premium y crea una app.
+                    2. Marca las APIs "Web API" e "iOS".
+                    3. Redirect URI: ailen-spotify://callback
+                    4. Bundle ID de iOS: \(Bundle.main.bundleIdentifier ?? "el de esta app")
+                    5. En "User Management" añade el correo de tu cuenta de Spotify.
+                    6. Copia el Client ID y pégalo arriba.
+                    """)
+                    .font(DS.Typography.caption)
+                    .foregroundColor(tokens.textSecondary)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+                .font(DS.Typography.caption)
+                .tint(tokens.highlightColor)
+                .padding(.leading, 40)
+                if spotify.state != .signedOut && spotify.state != .notConfigured && spotify.state != .notInstalled {
+                    Button("Cerrar sesión de Spotify", role: .destructive) { spotify.signOut() }
+                        .font(DS.Typography.caption)
+                        .padding(.leading, 40)
+                }
+            }
+        }
+        .padding(.horizontal, DS.Spacing.md)
+        .padding(.vertical, DS.Spacing.md)
     }
 
     private var screenModeExplanation: String {

@@ -17,6 +17,7 @@ struct AriaApp: App {
     @StateObject private var videoLibraryManager: VideoLibraryManager
     @StateObject private var videoPlayback = VideoPlaybackController()
     @StateObject private var appleMusic = AppleMusicService()
+    @StateObject private var spotify = SpotifyService()
     @StateObject private var navigationCoordinator = NavigationCoordinator()
     @StateObject private var downloadManager = DownloadManager()
     @StateObject private var smartPlaylistsManager = SmartPlaylistsManager(store: JSONFileStore(filename: "smart_playlists.json"))
@@ -89,6 +90,7 @@ struct AriaApp: App {
                 .environmentObject(videoLibraryManager)
                 .environmentObject(videoPlayback)
                 .environmentObject(appleMusic)
+                .environmentObject(spotify)
                 .environmentObject(navigationCoordinator)
                 .environmentObject(downloadManager)
                 .environmentObject(smartPlaylistsManager)

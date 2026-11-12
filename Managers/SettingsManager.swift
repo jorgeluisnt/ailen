@@ -61,6 +61,11 @@ final class SettingsManager: ObservableObject {
     @Published var screenWhilePlaying: ScreenWhilePlaying = .normal
     /// Optional Apple Music section; off = Ailen never touches Apple Music.
     @Published var appleMusicEnabled = false
+    /// Optional Spotify section (controls the Spotify app on this device).
+    @Published var spotifyEnabled = false
+    /// Client ID from the user's own app in the Spotify developer dashboard
+    /// (not a secret: the login uses PKCE).
+    @Published var spotifyClientID = ""
     @Published var isDarkMode: Bool = true
     @Published var selectedThemeID: String = "soundwave"
     /// Editable theme, as hex. Empty = Sound Wave default.
@@ -142,6 +147,8 @@ final class SettingsManager: ObservableObject {
 
     private func load() {
         appleMusicEnabled = defaults.bool(forKey: "apple_music_enabled")
+        spotifyEnabled = defaults.bool(forKey: "spotify_enabled")
+        spotifyClientID = defaults.string(forKey: "spotify_client_id") ?? ""
         if let raw = defaults.string(forKey: "screen_while_playing"),
            let val = ScreenWhilePlaying(rawValue: raw) { screenWhilePlaying = val }
         if let raw = defaults.string(forKey: "default_start_tab"),
@@ -177,6 +184,8 @@ final class SettingsManager: ObservableObject {
         defaults.set(defaultStartTab.rawValue, forKey: "default_start_tab")
         defaults.set(screenWhilePlaying.rawValue, forKey: "screen_while_playing")
         defaults.set(appleMusicEnabled, forKey: "apple_music_enabled")
+        defaults.set(spotifyEnabled, forKey: "spotify_enabled")
+        defaults.set(spotifyClientID, forKey: "spotify_client_id")
         defaults.set(isDarkMode, forKey: "dark_mode")
         defaults.set(selectedThemeID, forKey: "theme_id")
         defaults.set(customAccentHex, forKey: "theme_custom_accent")
