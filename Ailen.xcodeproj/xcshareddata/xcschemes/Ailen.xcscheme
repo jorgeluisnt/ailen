@@ -15,9 +15,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "D7D8FDAA2FB68CD200BDEF51"
-               BuildableName = "Aria - Music Browser.app"
-               BlueprintName = "Aria - Music Browser"
-               ReferencedContainer = "container:Aria.xcodeproj">
+               BuildableName = "Ailen.app"
+               BlueprintName = "Ailen"
+               ReferencedContainer = "container:Ailen.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -33,9 +33,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "A1B2C3D4E5F60718293A4B5C"
-               BuildableName = "AriaTests.xctest"
-               BlueprintName = "AriaTests"
-               ReferencedContainer = "container:Aria.xcodeproj">
+               BuildableName = "AilenTests.xctest"
+               BlueprintName = "AilenTests"
+               ReferencedContainer = "container:Ailen.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -55,9 +55,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "D7D8FDAA2FB68CD200BDEF51"
-            BuildableName = "Aria - Music Browser.app"
-            BlueprintName = "Aria - Music Browser"
-            ReferencedContainer = "container:Aria.xcodeproj">
+            BuildableName = "Ailen.app"
+            BlueprintName = "Ailen"
+            ReferencedContainer = "container:Ailen.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -72,9 +72,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "D7D8FDAA2FB68CD200BDEF51"
-            BuildableName = "Aria - Music Browser.app"
-            BlueprintName = "Aria - Music Browser"
-            ReferencedContainer = "container:Aria.xcodeproj">
+            BuildableName = "Ailen.app"
+            BlueprintName = "Ailen"
+            ReferencedContainer = "container:Ailen.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

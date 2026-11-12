@@ -1,6 +1,6 @@
 import AVFoundation
 import XCTest
-@testable import Aria___Music_Browser
+@testable import Ailen
 
 /// iOS honors only 44.1/48 kHz for output, so the job is choosing the right
 /// FAMILY (44.1 vs 48) for a given source — see

@@ -1,5 +1,5 @@
 import XCTest
-@testable import Aria___Music_Browser
+@testable import Ailen
 
 /// Verifies the iOS client attaches the `X-API-Key` header to backend requests
 /// when a key is configured, and omits it otherwise (opt-in auth).

@@ -1,6 +1,6 @@
 import XCTest
 import Security
-@testable import Aria___Music_Browser
+@testable import Ailen
 
 final class TLSPinningDelegateTests: XCTestCase {
 

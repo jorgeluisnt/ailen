@@ -1,5 +1,5 @@
 import Testing
-@testable import Aria___Music_Browser
+@testable import Ailen
 
 @Suite("Loadable")
 struct LoadableTests {

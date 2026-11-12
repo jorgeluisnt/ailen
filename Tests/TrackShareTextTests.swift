@@ -1,5 +1,5 @@
 import XCTest
-@testable import Aria___Music_Browser
+@testable import Ailen
 
 /// Share must never emit a URL. The old behaviour built a
 /// `youtube.com/watch?v=<id>` link from the track id, which was wrong for

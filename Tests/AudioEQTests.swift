@@ -1,6 +1,6 @@
 import XCTest
 import AVFoundation
-@testable import Aria___Music_Browser
+@testable import Ailen
 
 final class AudioEQTests: XCTestCase {
 

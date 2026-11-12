@@ -1,6 +1,6 @@
 import XCTest
 import AVFoundation
-@testable import Aria___Music_Browser
+@testable import Ailen
 
 /// Model, controller, and render coverage for the parametric EQ.
 final class ParametricEQTests: XCTestCase {

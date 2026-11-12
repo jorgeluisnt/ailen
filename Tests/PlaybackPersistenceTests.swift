@@ -1,5 +1,5 @@
 import XCTest
-@testable import Aria___Music_Browser
+@testable import Ailen
 
 /// Covers persisting + restoring the playback session (now-playing track,
 /// queue, position) across launches.

@@ -1,5 +1,5 @@
 import XCTest
-@testable import Aria___Music_Browser
+@testable import Ailen
 
 /// Hermetic coverage for the Subsonic client. The wire shapes here are copied
 /// from live responses of the public Navidrome demo (0.63.2 / API 1.16.1), so

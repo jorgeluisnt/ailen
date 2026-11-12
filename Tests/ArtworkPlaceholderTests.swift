@@ -1,6 +1,6 @@
 import XCTest
 import SwiftUI
-@testable import Aria___Music_Browser
+@testable import Ailen
 
 /// `ArtworkPlaceholder` is almost entirely visual, so these tests just
 /// confirm it instantiates and renders (via `UIHostingController`) at the

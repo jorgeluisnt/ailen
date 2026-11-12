@@ -1,5 +1,5 @@
 import XCTest
-@testable import Aria___Music_Browser
+@testable import Ailen
 
 /// Query decoding, `Loadable` state transitions, scope gating, and the
 /// privacy DELETE-on-URL-change flow. All network stubbed via

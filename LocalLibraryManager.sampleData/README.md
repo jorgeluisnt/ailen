@@ -50,7 +50,7 @@ and wants it back.
 ## How to use it (device)
 
 `UIFileSharingEnabled` is not currently set in
-`Aria---Music-Browser-Info.plist`, so the app's Documents directory
+`Ailen-Info.plist`, so the app's Documents directory
 is not exposed to the Files app. To add sample data on a real
 device, either:
 

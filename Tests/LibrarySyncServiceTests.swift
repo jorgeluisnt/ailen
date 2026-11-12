@@ -1,5 +1,5 @@
 import XCTest
-@testable import Aria___Music_Browser
+@testable import Ailen
 
 /// Snapshot assembly, delta computation, the 60 s sync gate, and the sync /
 /// privacy-delete network calls — all with the network stubbed through

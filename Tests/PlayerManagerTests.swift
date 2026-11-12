@@ -1,6 +1,6 @@
 import XCTest
 import Combine
-@testable import Aria___Music_Browser
+@testable import Ailen
 
 // MARK: - Test doubles
 

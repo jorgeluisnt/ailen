@@ -113,12 +113,12 @@ jobs:
           echo "Selected simulator: $(xcrun simctl list devices | grep "$udid" || echo "$udid")"
           echo "udid=$udid" >> "$GITHUB_OUTPUT"
 
-      - name: Run AriaTests
+      - name: Run AilenTests
         run: |
           set -o pipefail
           xcodebuild test \
-            -scheme AriaTests \
-            -project Aria.xcodeproj \
+            -scheme AilenTests \
+            -project Ailen.xcodeproj \
             -destination "id=${{ steps.sim.outputs.udid }}" \
             CODE_SIGNING_ALLOWED=NO
 
@@ -148,7 +148,7 @@ jobs:
                   continue
 
               name = meta.get("app_name") or meta.get("process") or "?"
-              if "Aria" not in name:
+              if "Ailen" not in name:
                   continue
 
               print("===== %s" % path)

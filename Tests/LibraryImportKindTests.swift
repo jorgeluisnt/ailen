@@ -1,6 +1,6 @@
 import XCTest
 import UniformTypeIdentifiers
-@testable import Aria___Music_Browser
+@testable import Ailen
 
 /// The Library has ONE `.fileImporter`; this enum decides what it asks for.
 /// (Three stacked `.fileImporter`s only ever presented the last one, which

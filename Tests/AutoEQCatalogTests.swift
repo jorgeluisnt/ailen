@@ -1,5 +1,5 @@
 import XCTest
-@testable import Aria___Music_Browser
+@testable import Ailen
 
 final class AutoEQCatalogTests: XCTestCase {
 

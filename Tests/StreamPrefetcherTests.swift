@@ -1,5 +1,5 @@
 import XCTest
-@testable import Aria___Music_Browser
+@testable import Ailen
 
 /// Counting `StreamResolving` double so tests can assert how many times the
 /// underlying resolver was actually hit.

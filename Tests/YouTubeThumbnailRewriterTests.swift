@@ -1,5 +1,5 @@
 import XCTest
-@testable import Aria___Music_Browser
+@testable import Ailen
 
 final class YouTubeThumbnailRewriterTests: XCTestCase {
     private let base = URL(string: "https://i.ytimg.com/vi/dQw4w9WgXcQ/default.jpg")!

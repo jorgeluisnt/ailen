@@ -9,7 +9,8 @@ make help      # list the available targets
 make doctor    # check your setup
 make sim       # build and run in the simulator
 make install   # build and install on a connected iPhone
-make test      # run the iOS tests
+make test      # run the iOS tests (needs an iOS simulator runtime)
+make check     # compile app and tests only; no simulator needed
 python3 -m pytest backend/tests
 bash backend/tests/docker_smoke.sh   # needs Docker
 ```
@@ -22,6 +23,23 @@ make install TEAM=ABCDE12345 BUNDLE_ID=com.you.aria DEVICE=<udid>
 make sim SIM="iPhone 17 Pro"
 ```
 
+`make test` and `make sim` need an iOS simulator runtime. Install one from
+Xcode → Settings → Components, or `xcodebuild -downloadPlatform iOS`.
+
+**iPad.** The project targets iPhone only. To install on an iPad with a
+native-size window instead of the scaled iPhone one, pass
+`DEVICE_FAMILY=1,2`. With more than one device connected, name it:
+
+```sh
+xcrun devicectl list devices            # find the UDID
+make install DEVICE_FAMILY=1,2 DEVICE=<udid>
+```
+
+`make install` builds for that device and registers it with your team, so a
+new device gets a provisioning profile automatically. On first launch the
+device must trust the developer (Settings → General → VPN & Device
+Management) and have Developer Mode on.
+
 The committed `DEVELOPMENT_TEAM` and bundle ID are the maintainer's, so running
 from Xcode fails signing until you change them.
 
@@ -30,11 +48,11 @@ from Xcode fails signing until you change them.
 ```
 AriaApp
   └─ AppEnvironment (typed env keys)
-       ├─ PlayerManager       (playback state; AVPlayer + engine paths)
+       ├─ PlayerManager       (playback state; AVPlayer path)
        │    ├─ NowPlayingService
        │    ├─ EQController (+ EqualizerState debounce bridge)
        │    ├─ EQCache
-       │    ├─ AVPlayerPath    (no-EQ AVPlayer path)
+       │    ├─ AVPlayerPath    (AVPlayer with optional EQ processing tap)
        │    ├─ StreamResolver  (async /api/play fetcher)
        │    └─ TLSPinningDelegate (dev-only cert pin)
        ├─ LocalLibraryManager (file import, metadata extraction, persistence)
@@ -90,10 +108,10 @@ is held in the Keychain, never `UserDefaults`, and is never transmitted
 
 Debug builds allow plain HTTP, so you can use a private address such as a Tailscale
 IP. Enter it under **More → Backend**, or set `ARIA_HOMELAB_HOST` in
-`Aria---Music-Browser-Info.plist` and keep that edit out of git:
+`Ailen-Info.plist` and keep that edit out of git:
 
 ```sh
-git update-index --assume-unchanged Aria---Music-Browser-Info.plist
+git update-index --assume-unchanged Ailen-Info.plist
 ```
 
 The repo must keep the placeholder `192.0.2.1`. The two live tests,
@@ -150,6 +168,19 @@ tailnet, serving `nomic-embed-text-v1.5` (Q8_0, 768-dim). Without it the
 feature runs lexical-only.
 
 ## Local files
+
+The current local playback path uses `AVPlayer` for both Directo and EQ.
+`AudioEQTap` attaches to an item only when EQ or pitch processing is needed;
+changing EQ bypass updates that tap without rebuilding an `AVAudioEngine`.
+The earlier engine-path description was stale. Gapless playback across local
+files has not been verified.
+
+In the local-only UI, server search and backend setup are hidden. The legacy
+services remain in the repository for compatibility with stored data. New
+local imports use embedded artwork only and do not request cover art from a
+backend. The player reads source codec, sample rate and bit depth from the
+audio track's format description; values not reported by the asset are shown
+as unavailable.
 
 ### Import
 

@@ -1,5 +1,5 @@
 import XCTest
-@testable import Aria___Music_Browser
+@testable import Ailen
 
 /// iOS moves the app's Data container to a new UUID on reinstall and update, so
 /// a `file:` URL saved by an earlier install points at a folder that's gone.

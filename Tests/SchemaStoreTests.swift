@@ -1,5 +1,5 @@
 import XCTest
-@testable import Aria___Music_Browser
+@testable import Ailen
 
 /// Covers the schema-versioning + migration + corruption-quarantine layer that
 /// wraps every JSON store. The contract: never silently lose data — migrate a

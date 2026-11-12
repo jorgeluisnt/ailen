@@ -1,5 +1,5 @@
 import XCTest
-@testable import Aria___Music_Browser
+@testable import Ailen
 
 /// Pins the client's doc composition (`LibraryDoc`) to the SERVER's
 /// (`backend/library_index.py`). Every expected `doc_text`/`doc_hash` below

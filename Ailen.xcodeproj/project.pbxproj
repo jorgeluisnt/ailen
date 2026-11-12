@@ -12,13 +12,13 @@
 			containerPortal = D7D8FDA32FB68CD200BDEF51 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = D7D8FDAA2FB68CD200BDEF51;
-			remoteInfo = "Aria - Music Browser";
+			remoteInfo = "Ailen";
 		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		A1B2C3D4E5F60718293A4B5D /* AriaTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AriaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		D7D8FDAB2FB68CD200BDEF51 /* Aria - Music Browser.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Aria - Music Browser.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1B2C3D4E5F60718293A4B5D /* AilenTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AilenTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		D7D8FDAB2FB68CD200BDEF51 /* Ailen.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Ailen.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -94,8 +94,8 @@
 		D7D8FDAC2FB68CD200BDEF51 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				D7D8FDAB2FB68CD200BDEF51 /* Aria - Music Browser.app */,
-				A1B2C3D4E5F60718293A4B5D /* AriaTests.xctest */,
+				D7D8FDAB2FB68CD200BDEF51 /* Ailen.app */,
+				A1B2C3D4E5F60718293A4B5D /* AilenTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -103,9 +103,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		A1B2C3D4E5F60718293A4B5C /* AriaTests */ = {
+		A1B2C3D4E5F60718293A4B5C /* AilenTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = A1B2C3D4E5F60718293A4B66 /* Build configuration list for PBXNativeTarget "AriaTests" */;
+			buildConfigurationList = A1B2C3D4E5F60718293A4B66 /* Build configuration list for PBXNativeTarget "AilenTests" */;
 			buildPhases = (
 				A1B2C3D4E5F60718293A4B5E /* Sources */,
 				A1B2C3D4E5F60718293A4B5F /* Frameworks */,
@@ -119,16 +119,16 @@
 			fileSystemSynchronizedGroups = (
 				A1B2C3D4E5F60718293A4B61 /* Tests */,
 			);
-			name = AriaTests;
+			name = AilenTests;
 			packageProductDependencies = (
 			);
-			productName = AriaTests;
-			productReference = A1B2C3D4E5F60718293A4B5D /* AriaTests.xctest */;
+			productName = AilenTests;
+			productReference = A1B2C3D4E5F60718293A4B5D /* AilenTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		D7D8FDAA2FB68CD200BDEF51 /* Aria - Music Browser */ = {
+		D7D8FDAA2FB68CD200BDEF51 /* Ailen */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = D7D8FDB62FB68CD500BDEF51 /* Build configuration list for PBXNativeTarget "Aria - Music Browser" */;
+			buildConfigurationList = D7D8FDB62FB68CD500BDEF51 /* Build configuration list for PBXNativeTarget "Ailen" */;
 			buildPhases = (
 				D7D8FDA72FB68CD200BDEF51 /* Sources */,
 				D7D8FDA82FB68CD200BDEF51 /* Frameworks */,
@@ -146,11 +146,11 @@
 				D7D8FDD12FB79AE400BDEF51 /* Managers */,
 				D7D8FDE12FB79B000BDEF51 /* Resources */,
 			);
-			name = "Aria - Music Browser";
+			name = "Ailen";
 			packageProductDependencies = (
 			);
-			productName = "Aria - Music Browser";
-			productReference = D7D8FDAB2FB68CD200BDEF51 /* Aria - Music Browser.app */;
+			productName = "Ailen";
+			productReference = D7D8FDAB2FB68CD200BDEF51 /* Ailen.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -168,7 +168,7 @@
 					};
 				};
 			};
-			buildConfigurationList = D7D8FDA62FB68CD200BDEF51 /* Build configuration list for PBXProject "Aria" */;
+			buildConfigurationList = D7D8FDA62FB68CD200BDEF51 /* Build configuration list for PBXProject "Ailen" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -182,8 +182,8 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				D7D8FDAA2FB68CD200BDEF51 /* Aria - Music Browser */,
-				A1B2C3D4E5F60718293A4B5C /* AriaTests */,
+				D7D8FDAA2FB68CD200BDEF51 /* Ailen */,
+				A1B2C3D4E5F60718293A4B5C /* AilenTests */,
 			);
 		};
 /* End PBXProject section */
@@ -225,7 +225,7 @@
 /* Begin PBXTargetDependency section */
 		A1B2C3D4E5F60718293A4B63 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = D7D8FDAA2FB68CD200BDEF51 /* Aria - Music Browser */;
+			target = D7D8FDAA2FB68CD200BDEF51 /* Ailen */;
 			targetProxy = A1B2C3D4E5F60718293A4B62 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -239,7 +239,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = UMMQB88PD3;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "AriaTests-Info.plist";
+				INFOPLIST_FILE = "AilenTests-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -253,7 +253,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Aria - Music Browser.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Aria - Music Browser";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Ailen.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Ailen";
 			};
 			name = Debug;
 		};
@@ -265,7 +265,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = UMMQB88PD3;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "AriaTests-Info.plist";
+				INFOPLIST_FILE = "AilenTests-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -279,7 +279,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Aria - Music Browser.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Aria - Music Browser";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Ailen.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Ailen";
 			};
 			name = Release;
 		};
@@ -412,8 +412,8 @@
 				DEVELOPMENT_TEAM = UMMQB88PD3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "Aria---Music-Browser-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = Aria;
+				INFOPLIST_FILE = "Ailen-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Ailen;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -449,8 +449,8 @@
 				ENABLE_PREVIEWS = YES;
 				EXCLUDED_SOURCE_FILE_NAMES = cert.der;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "Aria---Music-Browser-Info-Release.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = Aria;
+				INFOPLIST_FILE = "Ailen-Info-Release.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Ailen;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -478,7 +478,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		A1B2C3D4E5F60718293A4B66 /* Build configuration list for PBXNativeTarget "AriaTests" */ = {
+		A1B2C3D4E5F60718293A4B66 /* Build configuration list for PBXNativeTarget "AilenTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				A1B2C3D4E5F60718293A4B64 /* Debug */,
@@ -487,7 +487,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		D7D8FDA62FB68CD200BDEF51 /* Build configuration list for PBXProject "Aria" */ = {
+		D7D8FDA62FB68CD200BDEF51 /* Build configuration list for PBXProject "Ailen" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				D7D8FDB42FB68CD500BDEF51 /* Debug */,
@@ -496,7 +496,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		D7D8FDB62FB68CD500BDEF51 /* Build configuration list for PBXNativeTarget "Aria - Music Browser" */ = {
+		D7D8FDB62FB68CD500BDEF51 /* Build configuration list for PBXNativeTarget "Ailen" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				D7D8FDB72FB68CD500BDEF51 /* Debug */,

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds Aria with the Release configuration and asserts on the BUILT
+# Builds Ailen with the Release configuration and asserts on the BUILT
 # product's Info.plist and bundled files — not the source plists — so what's
 # checked is what would be archived. Run before every App Store submission:
 #
@@ -12,11 +12,11 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 BUILD=build-verify
-APP="$BUILD/Build/Products/Release-iphoneos/Aria - Music Browser.app"
+APP="$BUILD/Build/Products/Release-iphoneos/Ailen.app"
 PLIST="$APP/Info.plist"
 
 echo "→ Building Release for generic iOS (unsigned; signing is not what's under test)…"
-xcodebuild build -project Aria.xcodeproj -scheme "Aria - Music Browser" \
+xcodebuild build -project Ailen.xcodeproj -scheme "Ailen" \
   -configuration Release -destination "generic/platform=iOS" \
   -derivedDataPath "$BUILD" CODE_SIGNING_ALLOWED=NO -quiet
 [[ -f "$PLIST" ]] || { echo "✗ built product not found at $APP"; exit 1; }

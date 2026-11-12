@@ -1,5 +1,5 @@
 import XCTest
-@testable import Aria___Music_Browser
+@testable import Ailen
 
 /// Covers the `PlaybackClock` split (position/duration forwarders) and the
 /// stall-recovery entry points on `PlayerManager`. Reuses `MockURLSession`

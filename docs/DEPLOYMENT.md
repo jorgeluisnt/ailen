@@ -12,7 +12,7 @@ local-files-only player without one.
 
 ### A1. Direct install from Xcode (what you do today)
 
-1. Open `Aria.xcodeproj` in Xcode, scheme **"Aria - Music Browser"**.
+1. Open `Ailen.xcodeproj` in Xcode, scheme **"Ailen"**.
 2. Signing: the project uses **Automatic** signing with team `UMMQB88PD3`.
    - **Free Apple ID**: works, but apps re-sign every **7 days** and you're
      limited to 3 sideloaded apps. Fine for kicking the tires, annoying for a
@@ -20,9 +20,9 @@ local-files-only player without one.
    - **Paid Developer Program ($99/yr)**: 1-year provisioning, no re-sign
      dance, and unlocks TestFlight (A2). Worth it if Aria is your daily player.
 3. Point the app at your homelab backend (Debug builds):
-   - Set your real Tailscale IP in `Aria---Music-Browser-Info.plist` →
+   - Set your real Tailscale IP in `Ailen-Info.plist` →
      `ARIA_HOMELAB_HOST`, then keep it out of git:
-     `git update-index --assume-unchanged Aria---Music-Browser-Info.plist`
+     `git update-index --assume-unchanged Ailen-Info.plist`
    - Or use the build-setting override — see README §"Building for your device".
    - If the backend enforces auth, put the key in `ARIA_API_KEY` (same
      assume-unchanged flow) and set `ARIA_API_KEY` in the backend env.
@@ -41,7 +41,7 @@ Once on the paid program: archive (Product → Archive), upload to App Store
 Connect, add yourself (and up to 100 internal testers) in TestFlight. Builds
 last 90 days, install/update over the air, no cable.
 **Important:** TestFlight builds are **Release** builds — they use the hardened
-`Aria---Music-Browser-Info-Release.plist`, which has **no ATS bypass for plain
+`Ailen-Info-Release.plist`, which has **no ATS bypass for plain
 HTTP**. Your homelab-over-Tailscale URL (`http://100.x.y.z:8000`) will be
 blocked by ATS in these builds. Either front the backend with HTTPS (see
 Backend ops below) and set `ARIA_BACKEND_URL` in the Release plist, or stick
@@ -49,7 +49,7 @@ with Avenue A1 (Debug builds) for pure-homelab use.
 
 ### A3. What Release hardening changed (this branch)
 
-| | Debug plist (`Aria---Music-Browser-Info.plist`) | Release plist (`…-Info-Release.plist`) |
+| | Debug plist (`Ailen-Info.plist`) | Release plist (`…-Info-Release.plist`) |
 |---|---|---|
 | `NSAllowsArbitraryLoads` | `true` (dev convenience: HTTP-by-IP homelab) | **removed** |
 | Homelab IP ATS exception (TLSv1.0) | present | **removed** |

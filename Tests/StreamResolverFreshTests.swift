@@ -1,5 +1,5 @@
 import XCTest
-@testable import Aria___Music_Browser
+@testable import Ailen
 
 /// Verifies the failure-recovery contract: `resolve(for:fresh:)` must carry the
 /// `fresh=1` cache-bypass to the backend, and the normal path must not.

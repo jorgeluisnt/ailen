@@ -1,6 +1,6 @@
 import XCTest
 import AVFoundation
-@testable import Aria___Music_Browser
+@testable import Ailen
 
 /// Pitch shifting has to be proven on real audio: a pure tone goes in, and its
 /// energy must come out at the shifted frequency. Same isolation approach as
