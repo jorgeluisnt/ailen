@@ -11,6 +11,7 @@ struct ContentView: View {
     @EnvironmentObject private var localLibraryManager: LocalLibraryManager
     @EnvironmentObject private var videoLibraryManager: VideoLibraryManager
     @EnvironmentObject private var videoPlayback: VideoPlaybackController
+    @EnvironmentObject private var appleMusic: AppleMusicService
     @EnvironmentObject private var downloadManager: DownloadManager
     @EnvironmentObject private var eqController: EQController
     @EnvironmentObject private var smartPlaylistsManager: SmartPlaylistsManager
@@ -146,9 +147,21 @@ struct ContentView: View {
         .onChange(of: playerManager.isPlaying) { playing in
             // Music started (lock screen, panel, PiP): the video steps aside.
             if playing && videoPlayback.isPlaying { videoPlayback.pause() }
+            if playing { appleMusic.pause() }
             updateScreen()
         }
-        .onChange(of: videoPlayback.isPlaying) { _ in updateScreen() }
+        .onChange(of: videoPlayback.isPlaying) { playing in
+            if playing { appleMusic.pause() }
+            updateScreen()
+        }
+        .onChange(of: appleMusic.isPlaying) { _ in updateScreen() }
+        .onChange(of: settingsManager.appleMusicEnabled) { enabled in
+            // Turning it off stops Apple Music and leaves its tab.
+            if !enabled {
+                appleMusic.shutDown()
+                if selectedTab == .appleMusic { selectedTab = .library }
+            }
+        }
         .onChange(of: settingsManager.screenWhilePlaying) { _ in updateScreen() }
         .onChange(of: scenePhase) { _ in updateScreen() }
         // Every track that becomes current counts as played, whatever started
@@ -195,6 +208,7 @@ struct ContentView: View {
             // Connect favorites so the lock-screen Like command works.
             playerManager.configureFavorites(favoritesManager)
             videoPlayback.configure(library: videoLibraryManager, music: playerManager)
+            appleMusic.configure(music: playerManager, video: videoPlayback)
             playerManager.configureDownloads(downloadManager)
             if ProcessInfo.processInfo.arguments.contains("--debug-fake-track")
                 || UserDefaults.standard.bool(forKey: "debug_fake_track") {
@@ -206,7 +220,7 @@ struct ContentView: View {
 
     /// Minimized (background/inactive) always lets the screen sleep.
     private func updateScreen() {
-        screenAwake.update(playing: playerManager.isPlaying,
+        screenAwake.update(playing: playerManager.isPlaying || appleMusic.isPlaying,
                            videoPlaying: videoPlayback.isPlaying,
                            foreground: scenePhase == .active,
                            mode: settingsManager.screenWhilePlaying)
@@ -257,6 +271,8 @@ struct ContentView: View {
             SearchView()
         case .videos:
             VideosView()
+        case .appleMusic:
+            AppleMusicView()
         case .more:
             MoreView()
         }
@@ -273,6 +289,9 @@ struct ContentView: View {
                 tabBarButton(tab: .search, icon: "magnifyingglass", label: "Buscar")
             }
             tabBarButton(tab: .videos, icon: "film", label: "Videos")
+            if settingsManager.appleMusicEnabled {
+                tabBarButton(tab: .appleMusic, icon: "music.note.house", label: "Apple Music")
+            }
             tabBarButton(tab: .more, icon: "ellipsis", label: "Ajustes")
         }
         .padding(.horizontal, DS.Spacing.xs)
@@ -312,5 +331,5 @@ struct ContentView: View {
 }
 
 enum AppTab {
-    case favorites, playlists, library, videos, search, more
+    case favorites, playlists, library, videos, appleMusic, search, more
 }

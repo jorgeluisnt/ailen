@@ -156,6 +156,9 @@ final class NowPlayingService {
     }
 
     func activateAudioSession() {
+        // Local music is starting: take the lock-screen controls back in case
+        // a video or Apple Music had them (no-op when already registered).
+        configureRemoteCommands()
         Task(priority: .userInitiated) {
             let s = AVAudioSession.sharedInstance()
             do {

@@ -196,6 +196,31 @@ struct MoreView: View {
                 .padding(.horizontal, DS.Spacing.md)
                 .padding(.vertical, DS.Spacing.md)
 
+                Divider().background(tokens.hairline).padding(.leading, 56)
+
+                HStack(spacing: DS.Spacing.md) {
+                    iconBadge(systemName: "music.note.house", color: tokens.accent)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Apple Music")
+                            .font(DS.Typography.body)
+                            .foregroundColor(tokens.textPrimary)
+                        Text("Muestra tu biblioteca de Apple Music y la reproduce con el reproductor de Apple. Sin ecualizador ni datos de calidad. Desactivado, Ailen no accede a Apple Music.")
+                            .font(DS.Typography.caption)
+                            .foregroundColor(tokens.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer()
+                    Toggle("", isOn: $settingsManager.appleMusicEnabled)
+                        .labelsHidden()
+                        .tint(tokens.highlightColor)
+                        .onChange(of: settingsManager.appleMusicEnabled) { _ in
+                            Haptics.selection()
+                            settingsManager.save()
+                        }
+                }
+                .padding(.horizontal, DS.Spacing.md)
+                .padding(.vertical, DS.Spacing.md)
+
             }
         }
     }

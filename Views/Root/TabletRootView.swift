@@ -10,7 +10,7 @@ enum TabletLayout {
 
 /// Sections of the iPad rail. Raw values are persisted.
 enum TabletSection: String, CaseIterable, Identifiable {
-    case home, library, playlists, favorites, videos, settings
+    case home, library, playlists, favorites, videos, appleMusic, settings
 
     var id: String { rawValue }
 
@@ -21,6 +21,7 @@ enum TabletSection: String, CaseIterable, Identifiable {
         case .playlists: return "Listas"
         case .favorites: return "Favoritos"
         case .videos: return "Videos"
+        case .appleMusic: return "Apple Music"
         case .settings: return "Ajustes"
         }
     }
@@ -32,6 +33,7 @@ enum TabletSection: String, CaseIterable, Identifiable {
         case .playlists: return "music.note.list"
         case .favorites: return "heart"
         case .videos: return "film"
+        case .appleMusic: return "music.note.house"
         case .settings: return "gearshape"
         }
     }
@@ -41,10 +43,15 @@ enum TabletSection: String, CaseIterable, Identifiable {
 struct TabletRootView: View {
     @EnvironmentObject private var themeManager: ThemeManager
     @EnvironmentObject private var localLibraryManager: LocalLibraryManager
+    @EnvironmentObject private var settingsManager: SettingsManager
 
     @AppStorage("tabletSection") private var sectionRaw = TabletSection.home.rawValue
 
-    private var section: TabletSection { TabletSection(rawValue: sectionRaw) ?? .home }
+    private var section: TabletSection {
+        let stored = TabletSection(rawValue: sectionRaw) ?? .home
+        // Apple Music switched off while it was selected → back to Home.
+        return stored == .appleMusic && !settingsManager.appleMusicEnabled ? .home : stored
+    }
 
     var body: some View {
         HStack(spacing: 0) {
@@ -66,6 +73,7 @@ struct TabletRootView: View {
         case .playlists: PlaylistsView()
         case .favorites: FavoritesView()
         case .videos: VideosView()
+        case .appleMusic: AppleMusicView()
         case .settings: MoreView()
         }
     }
@@ -75,6 +83,7 @@ struct TabletRootView: View {
 struct TabletRail: View {
     @EnvironmentObject private var themeManager: ThemeManager
     @EnvironmentObject private var nav: NavigationCoordinator
+    @EnvironmentObject private var settingsManager: SettingsManager
 
     @Binding var selection: TabletSection
 
@@ -90,7 +99,8 @@ struct TabletRail: View {
                 .padding(.bottom, DS.Spacing.lg)
                 .accessibilityLabel("Ailen")
 
-            ForEach([TabletSection.home, .library, .playlists, .favorites, .videos]) { item in
+            ForEach([TabletSection.home, .library, .playlists, .favorites, .videos]
+                    + (settingsManager.appleMusicEnabled ? [.appleMusic] : [])) { item in
                 railButton(item.icon, item.title, selected: selection == item) { selection = item }
             }
             // The equalizer opens as a sheet, like from the player.

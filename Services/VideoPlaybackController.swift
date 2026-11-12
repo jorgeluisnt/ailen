@@ -47,7 +47,7 @@ final class VideoPlaybackController: NSObject, ObservableObject {
             return
         }
 
-        music?.yieldToVideo()
+        music?.yieldToOtherPlayer()
         let session = AVAudioSession.sharedInstance()
         try? session.setCategory(.playback, mode: .moviePlayback, policy: .default, options: [])
         try? session.setActive(true)
@@ -116,7 +116,7 @@ final class VideoPlaybackController: NSObject, ObservableObject {
         current = nil
         isPlaying = false
         isInPictureInPicture = false
-        music?.videoDidFinish()
+        music?.otherPlayerDidFinish()
     }
 
     private func saveResume() {

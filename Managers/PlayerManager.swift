@@ -469,15 +469,15 @@ final class PlayerManager: NSObject, ObservableObject {
         nowPlaying.updateNowPlaying()
     }
 
-    /// A video takes over: music pauses and its lock-screen controls step
-    /// aside so they don't fight AVKit's.
-    func yieldToVideo() {
+    /// Another player (a video, Apple Music) takes over: local music pauses
+    /// and its lock-screen controls step aside so they don't fight the other's.
+    func yieldToOtherPlayer() {
         if isPlaying { pause() }
         nowPlaying.suspendRemoteCommands()
     }
 
-    /// The video ended or was closed: music's lock-screen controls return.
-    func videoDidFinish() {
+    /// The other player ended or was closed: music's lock-screen controls return.
+    func otherPlayerDidFinish() {
         nowPlaying.resumeRemoteCommands()
     }
 

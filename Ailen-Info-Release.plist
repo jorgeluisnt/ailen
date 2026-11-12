@@ -49,6 +49,8 @@
 	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>Ailen usa tu biblioteca de Apple Music para mostrar y reproducir tus listas, álbumes y canciones.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>
