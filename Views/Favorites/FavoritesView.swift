@@ -74,7 +74,6 @@ struct FavoritesView: View {
             let tracks = favoritesManager.tracks.shuffled()
             guard !tracks.isEmpty else { return }
             playerManager.playSlice(tracks, startIndex: 0)
-            recentlyPlayedManager.trackPlayed(tracks[0])
         } label: {
             HStack(spacing: DS.Spacing.sm) {
                 Image(systemName: "shuffle")
@@ -101,11 +100,32 @@ struct FavoritesView: View {
     }
 
     private var listContent: some View {
+        let groups = favoritesManager.groupedByLetter()
+        let anchors = AlphabetIndex.anchors(groups.filter { !$0.tracks.isEmpty },
+                                            letter: { AlphabetIndex.letter(for: $0.letter) },
+                                            id: { AnyHashable($0.tracks[0].id) })
+        let showIndex = anchors.count > 1
+        return ScrollViewReader { proxy in
+            favoritesList
+                .padding(.trailing, showIndex ? AlphabetIndexBar.width : 0)
+                .overlay(alignment: .trailing) {
+                    if showIndex {
+                        AlphabetIndexBar(available: Set(anchors.keys), tokens: tokens) { letter in
+                            if let id = anchors[letter] { proxy.scrollTo(id, anchor: .top) }
+                        }
+                        .padding(.vertical, DS.Spacing.lg)
+                    }
+                }
+        }
+    }
+
+    private var favoritesList: some View {
         List {
             ForEach(favoritesManager.groupedByLetter(), id: \.letter) { group in
                 Section {
                     ForEach(group.tracks) { track in
                         trackRow(track)
+                            .id(track.id)  // A–Z index jump target
                             .listRowBackground(tokens.background)
                             .listRowSeparatorTint(tokens.hairline)
                             .listRowInsets(EdgeInsets(top: 4, leading: DS.Spacing.lg, bottom: 4, trailing: DS.Spacing.lg))
@@ -143,7 +163,6 @@ struct FavoritesView: View {
                 let allTracks = favoritesManager.groupedByLetter().flatMap { $0.tracks }
                 let idx = allTracks.firstIndex(where: { $0.id == track.id }) ?? 0
                 playerManager.playSlice(allTracks, startIndex: idx)
-                recentlyPlayedManager.trackPlayed(track)
             } label: {
                 HStack(spacing: DS.Spacing.sm) {
                     TrackThumbnail(url: track.thumbnailURL, size: 48, cornerRadius: DS.Radius.sm, tokens: tokens)

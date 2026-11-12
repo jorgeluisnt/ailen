@@ -43,6 +43,7 @@ struct LibrarySectionView: View {
                 .padding(.vertical, 4)
                 .background(isCurrentTrack(track) ? tokens.accentSubtle : Color.clear)
                 .contextMenu { actions(for: track) }
+                .id(track.id)  // A–Z index jump target
             }
         } header: {
             if showHeader && !section.title.isEmpty {
