@@ -25,6 +25,7 @@ struct ContentView: View {
     @State private var bannerDismiss: Task<Void, Never>?
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     /// Show/hide the full-screen player, skipping the slide spring when Reduce
     /// Motion is on (the view still cross-fades via its transition).
@@ -53,10 +54,23 @@ struct ContentView: View {
     }
 
     var body: some View {
+        // The root's modifiers (error banner, sheets, observers) hang off the
+        // ZStack inside `rootLayout`, so they apply to both layouts.
+        GeometryReader { geo in
+            rootLayout(isTablet: TabletLayout.isTablet(sizeClass: horizontalSizeClass, size: geo.size))
+        }
+    }
+
+    @ViewBuilder
+    private func rootLayout(isTablet: Bool) -> some View {
         ZStack {
             themeManager.background
                 .ignoresSafeArea()
 
+            if isTablet {
+                // iPad landscape: rail · always-visible Now Playing · content.
+                TabletRootView()
+            } else {
             // Floating glass chrome over the content (iOS 26 style): lists
             // scroll underneath the mini player and tab bar.
             tabContent
@@ -75,8 +89,9 @@ struct ContentView: View {
                     // iPad: keep the chrome compact instead of edge to edge.
                     .frame(maxWidth: 600)
                 }
+            }
 
-            if showFullPlayer {
+            if showFullPlayer && !isTablet {
                 FullScreenPlayerView(onDismiss: { setFullPlayer(false) })
                 .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
                 .zIndex(100)
