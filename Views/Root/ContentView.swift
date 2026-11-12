@@ -9,6 +9,7 @@ struct ContentView: View {
     @EnvironmentObject private var settingsManager: SettingsManager
     @EnvironmentObject private var themeManager: ThemeManager
     @EnvironmentObject private var localLibraryManager: LocalLibraryManager
+    @EnvironmentObject private var videoLibraryManager: VideoLibraryManager
     @EnvironmentObject private var downloadManager: DownloadManager
     @EnvironmentObject private var eqController: EQController
     @EnvironmentObject private var smartPlaylistsManager: SmartPlaylistsManager
@@ -212,6 +213,7 @@ struct ContentView: View {
         playlistsManager.flushPendingWrites()
         recentlyPlayedManager.flushPendingWrites()
         localLibraryManager.flushPendingWrites()
+        videoLibraryManager.flushPendingWrites()
         downloadManager.flushPendingWrites()
         playerManager.flushPendingWrites()
         eqController.flushPendingWrites()

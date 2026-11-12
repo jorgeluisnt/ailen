@@ -14,6 +14,7 @@ struct AriaApp: App {
     @StateObject private var themeManager: ThemeManager
     @StateObject private var eqController: EQController
     @StateObject private var localLibraryManager: LocalLibraryManager
+    @StateObject private var videoLibraryManager: VideoLibraryManager
     @StateObject private var navigationCoordinator = NavigationCoordinator()
     @StateObject private var downloadManager = DownloadManager()
     @StateObject private var smartPlaylistsManager = SmartPlaylistsManager(store: JSONFileStore(filename: "smart_playlists.json"))
@@ -46,6 +47,11 @@ struct AriaApp: App {
         _settingsManager = StateObject(wrappedValue: settings)
         _eqController = StateObject(wrappedValue: eq)
         _localLibraryManager = StateObject(wrappedValue: libraryManager)
+        // Videos are linked, not copied: only the index and thumbnails live here.
+        _videoLibraryManager = StateObject(wrappedValue: VideoLibraryManager(
+            store: JSONFileStore(filename: "video_library.json"),
+            thumbnailsDirectory: docs.appendingPathComponent("AilenVideos/thumbs", isDirectory: true)
+        ))
         _playerManager = StateObject(wrappedValue: PlayerManager(
             urlSession: Self.makeProductionSession(),
             eq: eq,
@@ -78,6 +84,7 @@ struct AriaApp: App {
                 .environmentObject(themeManager)
                 .environmentObject(eqController)
                 .environmentObject(localLibraryManager)
+                .environmentObject(videoLibraryManager)
                 .environmentObject(navigationCoordinator)
                 .environmentObject(downloadManager)
                 .environmentObject(smartPlaylistsManager)

@@ -27,6 +27,7 @@ enum FolderImporter {
     /// hidden files and package contents. Sorted for a stable, predictable
     /// import order (and so progress reads sensibly).
     static func audioFiles(in folder: URL,
+                           extensions: Set<String> = audioExtensions,
                            fileManager: FileManager = .default) -> [URL] {
         guard let enumerator = fileManager.enumerator(
             at: folder,
@@ -36,7 +37,7 @@ enum FolderImporter {
 
         var found: [URL] = []
         for case let url as URL in enumerator {
-            guard audioExtensions.contains(url.pathExtension.lowercased()) else { continue }
+            guard extensions.contains(url.pathExtension.lowercased()) else { continue }
             let isFile = (try? url.resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile ?? false
             guard isFile else { continue }
             found.append(url)

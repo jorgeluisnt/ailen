@@ -187,13 +187,21 @@ final class LibraryViewModel: ObservableObject {
     /// picked). `tracks` order is kept, so the current sort applies.
     static func folderContents(_ tracks: [LocalTrack], at path: [String])
         -> (folders: [FolderEntry], tracks: [LocalTrack]) {
+        let result = folderContents(tracks, at: path, folderPath: \.folderPath)
+        return (result.folders, result.items)
+    }
+
+    /// Generic form, shared with Videos: `folderPath` reads each item's folder.
+    static func folderContents<Item>(_ items: [Item], at path: [String],
+                                     folderPath: (Item) -> String?)
+        -> (folders: [FolderEntry], items: [Item]) {
         if path == [noFolderKey] {
-            return ([], tracks.filter { $0.folderPath == nil })
+            return ([], items.filter { folderPath($0) == nil })
         }
         var counts: [String: Int] = [:]
-        var here: [LocalTrack] = []
-        for track in tracks {
-            guard let folderPath = track.folderPath else {
+        var here: [Item] = []
+        for track in items {
+            guard let folderPath = folderPath(track) else {
                 if path.isEmpty { counts[noFolderKey, default: 0] += 1 }
                 continue
             }
