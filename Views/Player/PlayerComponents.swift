@@ -419,3 +419,38 @@ struct QueueEditButton: View {
         }
     }
 }
+
+/// Now Playing backdrop shared by the iPad panel and the full-screen player:
+/// the current artwork, heavily blurred and darkened so text stays legible,
+/// under Liquid Glass. Without artwork, a soft accent gradient. Fills the
+/// screen edges; place it as a background.
+struct ArtworkBlurBackground: View {
+    let url: URL?
+    let tokens: DesignTokens
+
+    var body: some View {
+        ZStack {
+            tokens.background
+            if let url {
+                // Fill inside a clear box and clip it: an aspect-filled square
+                // image is wider than a tall container and would spill out.
+                Color.clear
+                    .overlay {
+                        AsyncCachedImage(url: url, targetSize: 120) { tokens.accentGradient.opacity(0.3) }
+                            .aspectRatio(contentMode: .fill)
+                            .blur(radius: 60)
+                            .opacity(0.7)
+                    }
+                    .clipped()
+            } else {
+                tokens.accentGradient.opacity(0.3)
+            }
+            // Dark enough for secondary text over bright covers.
+            Color.black.opacity(0.45)
+            Color.clear.glassSurface(in: Rectangle())
+        }
+        .clipped()
+        .ignoresSafeArea()
+        .accessibilityHidden(true)
+    }
+}

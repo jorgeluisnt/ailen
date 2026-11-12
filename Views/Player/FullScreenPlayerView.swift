@@ -16,8 +16,8 @@ struct FullScreenPlayerView: View {
 
     var body: some View {
         ZStack {
-            themeManager.background
-                .ignoresSafeArea()
+            // Same backdrop as the iPad Now Playing panel.
+            ArtworkBlurBackground(url: playerManager.currentArtworkURL, tokens: themeManager.tokens)
 
             VStack(spacing: 0) {
                 HStack {

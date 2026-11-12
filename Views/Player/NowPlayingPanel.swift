@@ -58,13 +58,7 @@ struct NowPlayingPanel: View {
         .frame(maxHeight: .infinity)
         // Artwork and glass reach the screen edges (under the status bar and
         // home indicator); only the content respects the safe area.
-        .background {
-            ZStack {
-                artworkBackground
-                Color.clear.glassSurface(in: Rectangle())
-            }
-            .ignoresSafeArea()
-        }
+        .background { ArtworkBlurBackground(url: playerManager.currentArtworkURL, tokens: tokens) }
         .environment(\.editMode, $editMode)
         .task(id: playerManager.currentTrack?.id) {
             sourceInfo = nil
@@ -87,33 +81,6 @@ struct NowPlayingPanel: View {
         .frame(width: 220, height: 220)
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .shadow(color: .black.opacity(0.35), radius: 18, y: 8)
-        .accessibilityHidden(true)
-    }
-
-    /// Current artwork, heavily blurred and darkened so text stays legible;
-    /// the accent gradient when there is no artwork.
-    private var artworkBackground: some View {
-        ZStack {
-            tokens.background
-            if let url = playerManager.currentArtworkURL {
-                // Fill inside a clear box and clip it: an aspect-filled square
-                // image is wider than the panel and used to cover the rail.
-                Color.clear
-                    .overlay {
-                        AsyncCachedImage(url: url, targetSize: 120) { tokens.accentGradient.opacity(0.3) }
-                            .aspectRatio(contentMode: .fill)
-                            .blur(radius: 60)
-                            .opacity(0.7)
-                    }
-                    .clipped()
-            } else {
-                tokens.accentGradient.opacity(0.3)
-            }
-            // Dark enough for secondary text over bright covers.
-            Color.black.opacity(0.45)
-        }
-        .clipped()
-        .ignoresSafeArea()
         .accessibilityHidden(true)
     }
 
