@@ -103,6 +103,24 @@ final class NowPlayingService {
         }
     }
 
+    /// Removes music's remote-command handlers while a video plays (AVKit
+    /// registers its own). `resumeRemoteCommands` puts them back.
+    func suspendRemoteCommands() {
+        guard remoteCommandsConfigured else { return }
+        let c = MPRemoteCommandCenter.shared()
+        for command in [c.playCommand, c.pauseCommand, c.togglePlayPauseCommand,
+                        c.changePlaybackPositionCommand, c.nextTrackCommand,
+                        c.previousTrackCommand, c.likeCommand] as [MPRemoteCommand] {
+            command.removeTarget(nil)
+        }
+        remoteCommandsConfigured = false
+    }
+
+    func resumeRemoteCommands() {
+        configureRemoteCommands()
+        updateNowPlaying()
+    }
+
     func configureRemoteCommands() {
         guard !remoteCommandsConfigured else { return }
         remoteCommandsConfigured = true

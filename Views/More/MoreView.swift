@@ -8,8 +8,11 @@ struct MoreView: View {
     @EnvironmentObject private var recentlyPlayedManager: RecentlyPlayedManager
     @EnvironmentObject private var themeManager: ThemeManager
     @EnvironmentObject private var localLibraryManager: LocalLibraryManager
+    @EnvironmentObject private var videoLibraryManager: VideoLibraryManager
+    @EnvironmentObject private var videoPlayback: VideoPlaybackController
 
     @State private var showClearLibraryAlert = false
+    @State private var showClearVideosAlert = false
     @State private var showClearFavoritesAlert = false
     @State private var showDeletePlaylistsAlert = false
     @State private var showClearCacheAlert = false
@@ -67,6 +70,16 @@ struct MoreView: View {
             }
         } message: {
             Text("Se borrarán de este dispositivo \(LibraryViewModel.songCount(localLibraryManager.tracks.count)) importadas, con sus portadas, y se quitarán de Favoritos, listas, cola e historial. Las listas se conservan. Tus archivos originales en la app Archivos no se tocan. Esta acción no se puede deshacer.")
+        }
+        .alert("Quitar todos los videos", isPresented: $showClearVideosAlert) {
+            Button("Cancelar", role: .cancel) {}
+            Button("Quitar todo", role: .destructive) {
+                Haptics.warning()
+                videoPlayback.stop()
+                videoLibraryManager.removeAll()
+            }
+        } message: {
+            Text("Se quitarán de Ailen \(videoLibraryManager.videos.count) videos y las carpetas enlazadas. Los archivos originales no se borran; siguen en la app Archivos.")
         }
         .alert("Borrar todos los favoritos", isPresented: $showClearFavoritesAlert) {
             Button("Cancelar", role: .cancel) {}
@@ -432,6 +445,17 @@ struct MoreView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(localLibraryManager.tracks.isEmpty)
+
+                Divider().background(tokens.hairline).padding(.leading, 56)
+
+                Button {
+                    Haptics.warning()
+                    showClearVideosAlert = true
+                } label: {
+                    row(icon: "film", iconColor: .red, title: "Quitar todos los videos", isButton: true)
+                }
+                .buttonStyle(.plain)
+                .disabled(videoLibraryManager.videos.isEmpty)
 
                 Divider().background(tokens.hairline).padding(.leading, 56)
 

@@ -10,7 +10,7 @@ enum TabletLayout {
 
 /// Sections of the iPad rail. Raw values are persisted.
 enum TabletSection: String, CaseIterable, Identifiable {
-    case home, library, playlists, favorites, settings
+    case home, library, playlists, favorites, videos, settings
 
     var id: String { rawValue }
 
@@ -20,6 +20,7 @@ enum TabletSection: String, CaseIterable, Identifiable {
         case .library: return "Biblioteca"
         case .playlists: return "Listas"
         case .favorites: return "Favoritos"
+        case .videos: return "Videos"
         case .settings: return "Ajustes"
         }
     }
@@ -30,6 +31,7 @@ enum TabletSection: String, CaseIterable, Identifiable {
         case .library: return "books.vertical"
         case .playlists: return "music.note.list"
         case .favorites: return "heart"
+        case .videos: return "film"
         case .settings: return "gearshape"
         }
     }
@@ -63,6 +65,7 @@ struct TabletRootView: View {
         case .library: LibraryView(library: localLibraryManager)
         case .playlists: PlaylistsView()
         case .favorites: FavoritesView()
+        case .videos: VideosView()
         case .settings: MoreView()
         }
     }
@@ -87,7 +90,7 @@ struct TabletRail: View {
                 .padding(.bottom, DS.Spacing.lg)
                 .accessibilityLabel("Ailen")
 
-            ForEach([TabletSection.home, .library, .playlists, .favorites]) { item in
+            ForEach([TabletSection.home, .library, .playlists, .favorites, .videos]) { item in
                 railButton(item.icon, item.title, selected: selection == item) { selection = item }
             }
             // The equalizer opens as a sheet, like from the player.

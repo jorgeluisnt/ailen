@@ -10,6 +10,7 @@ struct ContentView: View {
     @EnvironmentObject private var themeManager: ThemeManager
     @EnvironmentObject private var localLibraryManager: LocalLibraryManager
     @EnvironmentObject private var videoLibraryManager: VideoLibraryManager
+    @EnvironmentObject private var videoPlayback: VideoPlaybackController
     @EnvironmentObject private var downloadManager: DownloadManager
     @EnvironmentObject private var eqController: EQController
     @EnvironmentObject private var smartPlaylistsManager: SmartPlaylistsManager
@@ -142,7 +143,12 @@ struct ContentView: View {
         }
         // Keep-awake / dim while music plays with the app in the foreground.
         .onAppear { updateScreen() }
-        .onChange(of: playerManager.isPlaying) { _ in updateScreen() }
+        .onChange(of: playerManager.isPlaying) { playing in
+            // Music started (lock screen, panel, PiP): the video steps aside.
+            if playing && videoPlayback.isPlaying { videoPlayback.pause() }
+            updateScreen()
+        }
+        .onChange(of: videoPlayback.isPlaying) { _ in updateScreen() }
         .onChange(of: settingsManager.screenWhilePlaying) { _ in updateScreen() }
         .onChange(of: scenePhase) { _ in updateScreen() }
         // Every track that becomes current counts as played, whatever started
@@ -188,6 +194,7 @@ struct ContentView: View {
         .onAppear {
             // Connect favorites so the lock-screen Like command works.
             playerManager.configureFavorites(favoritesManager)
+            videoPlayback.configure(library: videoLibraryManager, music: playerManager)
             playerManager.configureDownloads(downloadManager)
             if ProcessInfo.processInfo.arguments.contains("--debug-fake-track")
                 || UserDefaults.standard.bool(forKey: "debug_fake_track") {
@@ -199,7 +206,7 @@ struct ContentView: View {
 
     /// Minimized (background/inactive) always lets the screen sleep.
     private func updateScreen() {
-        screenAwake.update(playing: playerManager.isPlaying,
+        screenAwake.update(playing: playerManager.isPlaying || videoPlayback.isPlaying,
                            foreground: scenePhase == .active,
                            mode: settingsManager.screenWhilePlaying)
     }
@@ -247,6 +254,8 @@ struct ContentView: View {
             LibraryView(library: localLibraryManager)
         case .search:
             SearchView()
+        case .videos:
+            VideosView()
         case .more:
             MoreView()
         }
@@ -262,6 +271,7 @@ struct ContentView: View {
             if searchAvailable {
                 tabBarButton(tab: .search, icon: "magnifyingglass", label: "Buscar")
             }
+            tabBarButton(tab: .videos, icon: "film", label: "Videos")
             tabBarButton(tab: .more, icon: "ellipsis", label: "Ajustes")
         }
         .padding(.horizontal, DS.Spacing.xs)
@@ -301,5 +311,5 @@ struct ContentView: View {
 }
 
 enum AppTab {
-    case favorites, playlists, library, search, more
+    case favorites, playlists, library, videos, search, more
 }
