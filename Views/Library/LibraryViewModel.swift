@@ -12,11 +12,11 @@ enum LibrarySortOrder: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .recentlyAdded: return "Recently Added"
-        case .title: return "Title"
-        case .artist: return "Artist"
-        case .duration: return "Duration"
-        case .fileSize: return "File Size"
+        case .recentlyAdded: return "Añadidas recientemente"
+        case .title: return "Título"
+        case .artist: return "Artista"
+        case .duration: return "Duración"
+        case .fileSize: return "Tamaño de archivo"
         }
     }
 }
@@ -25,16 +25,28 @@ enum LibraryGroupBy: String, CaseIterable, Identifiable {
     case none
     case album
     case artist
+    case genre
 
     var id: String { rawValue }
 
     var displayName: String {
         switch self {
-        case .none: return "None"
-        case .album: return "Album"
-        case .artist: return "Artist"
+        case .none: return "Ninguno"
+        case .album: return "Álbum"
+        case .artist: return "Artista"
+        case .genre: return "Género"
         }
     }
+}
+
+/// An album, artist or genre in the browse grids: its tracks in the current
+/// sort order, plus one track whose artwork represents it.
+struct LibraryCollection: Identifiable, Hashable {
+    let id: String
+    let title: String
+    let subtitle: String
+    let tracks: [LocalTrack]
+    let artworkTrack: LocalTrack?
 }
 
 struct LibrarySection: Identifiable, Hashable {
@@ -57,6 +69,10 @@ final class LibraryViewModel: ObservableObject {
     /// on every SwiftUI body pass.
     @Published private(set) var filteredAndSortedTracks: [LocalTrack] = []
     @Published private(set) var sections: [LibrarySection] = []
+    /// Browse grids, built from the same filtered and sorted list.
+    @Published private(set) var albums: [LibraryCollection] = []
+    @Published private(set) var artists: [LibraryCollection] = []
+    @Published private(set) var genres: [LibraryCollection] = []
 
     private let library: LocalLibraryManager
     private var cancellables = Set<AnyCancellable>()
@@ -64,37 +80,57 @@ final class LibraryViewModel: ObservableObject {
     init(
         library: LocalLibraryManager,
         initialSortOrder: LibrarySortOrder = .recentlyAdded,
-        initialGroupBy: LibraryGroupBy = .none
+        initialGroupBy: LibraryGroupBy = .none,
+        searchDebounce: TimeInterval = 0
     ) {
         self.library = library
         self.sortOrder = initialSortOrder
         self.groupBy = initialGroupBy
         library.$tracks.assign(to: &$tracks)
 
-        // Recompute the derived lists once per input change. CombineLatest4
-        // fires synchronously with the current values on subscription, so the
-        // cached properties are populated immediately.
-        Publishers.CombineLatest4($tracks, $searchText, $sortOrder, $groupBy)
-            .map { tracks, query, order, group in
-                let sorted = Self.filterSort(tracks, query: query, order: order)
-                return (sorted, Self.makeSections(sorted, groupBy: group))
+        // Sorting (localized compares, ~75 ms for 20k titles) only reruns when
+        // the tracks or the order change; typing only filters the sorted list,
+        // after a short pause. The initial values pass through synchronously
+        // (no debounce on the first value), so the lists start populated.
+        let sorted = Publishers.CombineLatest($tracks, $sortOrder)
+            .map { Self.sort($0, by: $1) }
+        // 0 (tests) filters synchronously on every change.
+        let query: AnyPublisher<String, Never> = searchDebounce > 0
+            ? $searchText.dropFirst()
+                .debounce(for: .seconds(searchDebounce), scheduler: RunLoop.main)
+                .prepend(searchText)
+                .removeDuplicates()
+                .eraseToAnyPublisher()
+            : $searchText.eraseToAnyPublisher()
+        Publishers.CombineLatest3(sorted, query, $groupBy)
+            .map { sorted, query, group in
+                let filtered = Self.filter(sorted, query: query)
+                return (filtered, Self.makeSections(filtered, groupBy: group))
             }
             .sink { [weak self] sorted, sections in
                 self?.filteredAndSortedTracks = sorted
                 self?.sections = sections
+                self?.albums = Self.collections(sorted, key: { $0.album }) { tracks in
+                    tracks.first(where: { $0.artist != nil })?.artist ?? "Artista desconocido"
+                }
+                self?.artists = Self.collections(sorted, key: { $0.artist }) { Self.songCount($0.count) }
+                self?.genres = Self.collections(sorted, key: { $0.displayGenre }) { Self.songCount($0.count) }
             }
             .store(in: &cancellables)
     }
 
-    private static func filterSort(
-        _ tracks: [LocalTrack], query rawQuery: String, order: LibrarySortOrder
-    ) -> [LocalTrack] {
+    /// Keeps the input order. Matches title, artist, album or genre, ignoring case
+    /// and accents ("cafe" finds "Café").
+    private static func filter(_ tracks: [LocalTrack], query rawQuery: String) -> [LocalTrack] {
         let query = rawQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        let filtered = query.isEmpty ? tracks : tracks.filter { track in
-            track.title.range(of: query, options: .caseInsensitive) != nil
-                || (track.artist?.range(of: query, options: .caseInsensitive) != nil)
+        guard !query.isEmpty else { return tracks }
+        let options: String.CompareOptions = [.caseInsensitive, .diacriticInsensitive]
+        return tracks.filter { track in
+            track.title.range(of: query, options: options) != nil
+                || track.artist?.range(of: query, options: options) != nil
+                || track.album?.range(of: query, options: options) != nil
+                || track.displayGenre?.range(of: query, options: options) != nil
         }
-        return sort(filtered, by: order)
     }
 
     private static func makeSections(
@@ -107,6 +143,8 @@ final class LibraryViewModel: ObservableObject {
             return sectionsBy(tracks, key: { $0.album })
         case .artist:
             return sectionsBy(tracks, key: { $0.artist })
+        case .genre:
+            return sectionsBy(tracks, key: { $0.displayGenre })
         }
     }
 
@@ -123,12 +161,32 @@ final class LibraryViewModel: ObservableObject {
         }
         return orderedKeys.map { key in
             let bucket = buckets[key] ?? []
-            let title = key == Self.unknownKey ? "Unknown" : key
+            let title = key == Self.unknownKey ? "Desconocido" : key
             return LibrarySection(id: title, title: title, tracks: bucket)
         }
     }
 
     private static let unknownKey = "\u{1F}unknown"
+
+    static func songCount(_ n: Int) -> String { "\(n) \(n == 1 ? "canción" : "canciones")" }
+
+    /// Groups by `key`, A→Z with untagged tracks last as "Desconocido"; track
+    /// order inside each group is the input (sorted) order.
+    static func collections(
+        _ tracks: [LocalTrack],
+        key: (LocalTrack) -> String?,
+        subtitle: ([LocalTrack]) -> String
+    ) -> [LibraryCollection] {
+        sectionsBy(tracks, key: key).map { section in
+            LibraryCollection(
+                id: section.id,
+                title: section.title,
+                subtitle: subtitle(section.tracks),
+                tracks: section.tracks,
+                artworkTrack: section.tracks.first(where: { $0.artworkFileName != nil })
+            )
+        }
+    }
 
     private static func sort(_ tracks: [LocalTrack], by order: LibrarySortOrder) -> [LocalTrack] {
         switch order {

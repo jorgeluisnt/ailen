@@ -1,6 +1,6 @@
 import XCTest
 import AVFoundation
-@testable import Aria___Music_Browser
+@testable import Ailen
 
 @MainActor
 final class LocalLibraryManagerTests: XCTestCase {
@@ -337,12 +337,12 @@ final class LocalLibraryManagerTests: XCTestCase {
 
         manager.flushPendingWrites()
 
-        // Recreate the manager — this triggers cleanupOrphans().
+        // Recreate the manager without deleting an unindexed replacement.
         manager = LocalLibraryManager(store: store, libraryDirectory: libraryDir)
 
         XCTAssertTrue(
             FileManager.default.fileExists(atPath: repairedURL.path),
-            "repaired file must survive cleanupOrphans() on the next init"
+            "repaired file must survive the next init"
         )
         XCTAssertEqual(manager.tracks.count, 1)
         XCTAssertFalse(
@@ -447,7 +447,7 @@ final class LocalLibraryManagerTests: XCTestCase {
 
     // MARK: - Orphan cleanup (B4)
 
-    func test_orphanAudioFile_removedOnInit() throws {
+    func test_unindexedAudioFile_preservedOnInit() throws {
         let orphanName = "orphan-\(UUID().uuidString).mp3"
         let orphanPath = libraryDir.appendingPathComponent(orphanName)
         try Data(repeating: 0, count: 100).write(to: orphanPath)
@@ -456,12 +456,12 @@ final class LocalLibraryManagerTests: XCTestCase {
 
         manager = LocalLibraryManager(store: store, libraryDirectory: libraryDir)
 
-        XCTAssertFalse(FileManager.default.fileExists(atPath: orphanPath.path),
-                       "orphan audio file should be removed by cleanup on init")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: orphanPath.path),
+                      "an unindexed audio file must survive a failed index load")
         XCTAssertTrue(manager.tracks.isEmpty)
     }
 
-    func test_orphanArtworkFile_removedOnInit() throws {
+    func test_unindexedArtworkFile_preservedOnInit() throws {
         let artworkDir = libraryDir.appendingPathComponent("artwork", isDirectory: true)
         try FileManager.default.createDirectory(at: artworkDir, withIntermediateDirectories: true)
         let orphanName = "orphan-\(UUID().uuidString).jpg"
@@ -472,8 +472,8 @@ final class LocalLibraryManagerTests: XCTestCase {
 
         manager = LocalLibraryManager(store: store, libraryDirectory: libraryDir)
 
-        XCTAssertFalse(FileManager.default.fileExists(atPath: orphanPath.path),
-                       "orphan artwork file should be removed by cleanup on init")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: orphanPath.path),
+                      "unindexed artwork must survive a failed index load")
     }
 
     // MARK: - Import gates (B4)

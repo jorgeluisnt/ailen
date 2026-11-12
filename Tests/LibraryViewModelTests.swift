@@ -1,6 +1,6 @@
 import XCTest
 import Combine
-@testable import Aria___Music_Browser
+@testable import Ailen
 
 @MainActor
 final class LibraryViewModelTests: XCTestCase {
@@ -33,6 +33,7 @@ final class LibraryViewModelTests: XCTestCase {
         title: String = "Untitled",
         artist: String? = nil,
         album: String? = nil,
+        genre: String? = nil,
         importedAt: Date = Date(),
         fileSizeBytes: Int64 = 1024,
         duration: Double? = nil
@@ -46,7 +47,8 @@ final class LibraryViewModelTests: XCTestCase {
             importedAt: importedAt,
             fileSizeBytes: fileSizeBytes,
             durationSeconds: duration,
-            album: album
+            album: album,
+            genre: genre
         )
     }
 
@@ -162,9 +164,9 @@ final class LibraryViewModelTests: XCTestCase {
         let vm = LibraryViewModel(library: library)
         vm.groupBy = .album
         let titles = vm.sections.map(\.title)
-        XCTAssertEqual(titles, ["Apple", "Unknown"],
+        XCTAssertEqual(titles, ["Apple", "Desconocido"],
                        "nil-album tracks go to an \"Unknown\" section, sorted last")
-        let unknown = vm.sections.first { $0.title == "Unknown" }
+        let unknown = vm.sections.first { $0.title == "Desconocido" }
         XCTAssertEqual(unknown?.tracks.map(\.title), ["B1"])
     }
 
@@ -206,5 +208,80 @@ final class LibraryViewModelTests: XCTestCase {
                        "a search with no matches yields an empty filtered list — the view should render its empty state")
         XCTAssertTrue(vm.sections.allSatisfy { $0.tracks.isEmpty },
                        "no sections should hold any tracks when the filter is empty")
+    }
+
+    // MARK: - Search scope and debounce (offline MVP, Phase 4)
+
+    func test_searchMatchesAlbumAndIgnoresAccents() {
+        let library = makeLibrary(tracks: [
+            makeTrack(title: "Track 1", artist: "Rosalía", album: "Motomami"),
+            makeTrack(title: "Track 2", artist: "Other", album: "Café Tacvba"),
+        ])
+        let vm = LibraryViewModel(library: library, initialSortOrder: .title)
+        vm.searchText = "motomami"
+        XCTAssertEqual(vm.filteredAndSortedTracks.map(\.title), ["Track 1"])
+        vm.searchText = "rosalia"
+        XCTAssertEqual(vm.filteredAndSortedTracks.map(\.title), ["Track 1"])
+        vm.searchText = "cafe"
+        XCTAssertEqual(vm.filteredAndSortedTracks.map(\.title), ["Track 2"])
+    }
+
+    func test_debouncedSearchFiltersAfterPauseAndKeepsSortOrder() async throws {
+        let library = makeLibrary(tracks: [
+            makeTrack(title: "B Love"), makeTrack(title: "A Love"), makeTrack(title: "C Rain"),
+        ])
+        let vm = LibraryViewModel(library: library, initialSortOrder: .title, searchDebounce: 0.05)
+        XCTAssertEqual(vm.filteredAndSortedTracks.count, 3, "initial list is populated without waiting")
+
+        vm.searchText = "love"
+        XCTAssertEqual(vm.filteredAndSortedTracks.count, 3, "no filtering mid-typing")
+        try await Task.sleep(nanoseconds: 300_000_000)
+        XCTAssertEqual(vm.filteredAndSortedTracks.map(\.title), ["A Love", "B Love"])
+    }
+
+    // MARK: - Genre
+
+    func test_groupByGenre_putsUntaggedTracksLastAsUnknown() {
+        let library = makeLibrary(tracks: [
+            makeTrack(title: "A", genre: "Rock"),
+            makeTrack(title: "B", genre: "Jazz"),
+            makeTrack(title: "C", genre: ""),      // read, no tag
+            makeTrack(title: "D", genre: nil),     // not read yet
+            makeTrack(title: "E", genre: "Rock"),
+        ])
+        let vm = LibraryViewModel(library: library, initialSortOrder: .title, initialGroupBy: .genre)
+        XCTAssertEqual(vm.sections.map(\.title), ["Jazz", "Rock", "Desconocido"])
+        XCTAssertEqual(vm.sections.map { $0.tracks.map(\.title) }, [["B"], ["A", "E"], ["C", "D"]])
+    }
+
+    func test_searchMatchesGenre() {
+        let library = makeLibrary(tracks: [
+            makeTrack(title: "A", genre: "Electrónica"),
+            makeTrack(title: "B", genre: "Rock"),
+        ])
+        let vm = LibraryViewModel(library: library, initialSortOrder: .title)
+        vm.searchText = "electronica"
+        XCTAssertEqual(vm.filteredAndSortedTracks.map(\.title), ["A"])
+    }
+
+    // MARK: - Browse collections (Sound Wave library)
+
+    func test_albumArtistAndGenreCollectionsFollowSortAndPutUnknownLast() {
+        let library = makeLibrary(tracks: [
+            makeTrack(title: "B", artist: "Ana", album: "Uno", genre: "Jazz"),
+            makeTrack(title: "A", artist: "Ana", album: "Uno", genre: "Jazz"),
+            makeTrack(title: "C", artist: "Beto", album: nil, genre: ""),
+        ])
+        let vm = LibraryViewModel(library: library, initialSortOrder: .title)
+
+        XCTAssertEqual(vm.albums.map(\.title), ["Uno", "Desconocido"])
+        XCTAssertEqual(vm.albums.first?.tracks.map(\.title), ["A", "B"], "tracks keep the sort order")
+        XCTAssertEqual(vm.albums.first?.subtitle, "Ana")
+        XCTAssertEqual(vm.artists.map(\.title), ["Ana", "Beto"])
+        XCTAssertEqual(vm.artists.first?.subtitle, "2 canciones")
+        XCTAssertEqual(vm.genres.map(\.title), ["Jazz", "Desconocido"])
+
+        vm.searchText = "beto"
+        XCTAssertEqual(vm.artists.map(\.title), ["Beto"], "grids respect the search")
     }
 }

@@ -65,6 +65,13 @@ protocol CoverFetching {
     func fetchCoverImageData(title: String, artist: String?, durationSeconds: Double?) async -> Data?
 }
 
+/// The local-only product never sends track metadata to a cover service.
+struct OfflineCoverFetcher: CoverFetching {
+    func fetchCoverImageData(title: String, artist: String?, durationSeconds: Double?) async -> Data? {
+        nil
+    }
+}
+
 /// Production implementation: calls the backend's `/api/cover` endpoint,
 /// then downloads the returned image URL. Best-effort end to end — any
 /// network/decode error along the way yields `nil` rather than throwing.
@@ -191,7 +198,7 @@ final class LocalLibraryManager: ObservableObject {
         fileManager: FileManager = .default,
         isCloudFileNotDownloaded: @escaping (URL) -> Bool = LocalLibraryManager.defaultIsCloudFileNotDownloaded(_:),
         loadArtworkData: @escaping (URL) async -> Data? = LocalLibraryManager.defaultLoadArtworkData(from:),
-        coverFetcher: CoverFetching = BackendCoverFetcher()
+        coverFetcher: CoverFetching? = nil
     ) {
         self.store = store
         self.libraryDirectory = libraryDirectory
@@ -200,14 +207,16 @@ final class LocalLibraryManager: ObservableObject {
         self.fileManager = fileManager
         self.isCloudFileNotDownloaded = isCloudFileNotDownloaded
         self.loadArtworkData = loadArtworkData
-        self.coverFetcher = coverFetcher
+        self.coverFetcher = coverFetcher ?? OfflineCoverFetcher()
         self.saveDebouncer = Debouncer(delay: 0.5) { [weak self] in self?.performSave() }
         try? fileManager.createDirectory(at: libraryDirectory, withIntermediateDirectories: true)
         try? fileManager.createDirectory(at: sampleDataDirectory, withIntermediateDirectories: true)
         load()
         auditMissingFlags()
-        cleanupOrphans()
+        // Never delete unindexed audio at launch. If the JSON index failed
+        // to load, those files may be the user's only remaining copy.
         healMissingArtwork()
+        backfillGenres()
         backfillRemoteCovers()
         importSampleDataIfPresent()
     }
@@ -309,6 +318,7 @@ final class LocalLibraryManager: ObservableObject {
         let title = (await Self.readTitle(at: destURL, fallback: sourceURL.deletingPathExtension().lastPathComponent))
         let artist = await Self.readArtist(at: destURL)
         let album = await Self.readAlbum(at: destURL)
+        let genre = await GenreTag.read(at: destURL)
         let storedSize = (try? fileManager.attributesOfItem(atPath: destURL.path)[.size] as? Int64) ?? Int64(original.count)
         let duration = await Self.readDuration(at: destURL)
         var artworkFileName = await extractArtwork(from: destURL, trackID: id)
@@ -327,7 +337,8 @@ final class LocalLibraryManager: ObservableObject {
             importedAt: Date(),
             fileSizeBytes: storedSize,
             durationSeconds: duration,
-            album: album
+            album: album,
+            genre: genre ?? ""
         )
         tracks.insert(track, at: 0)
         save()
@@ -353,7 +364,7 @@ final class LocalLibraryManager: ObservableObject {
     /// `fileName` field is updated to match.
     func repairMissing(trackID: UUID, newFileURL: URL) throws -> LocalTrack {
         guard let idx = tracks.firstIndex(where: { $0.id == trackID }) else {
-            throw NSError(domain: "AriaLibrary", code: 404, userInfo: [NSLocalizedDescriptionKey: "Track not found"])
+            throw NSError(domain: "AriaLibrary", code: 404, userInfo: [NSLocalizedDescriptionKey: "Canción no encontrada"])
         }
         let old = tracks[idx]
 
@@ -438,6 +449,7 @@ final class LocalLibraryManager: ObservableObject {
                 fileSizeBytes: track.fileSizeBytes,
                 durationSeconds: track.durationSeconds,
                 album: track.album,
+                genre: track.genre,
                 isMissing: !exists
             )
         }
@@ -520,6 +532,32 @@ final class LocalLibraryManager: ObservableObject {
         let asset = AVURLAsset(url: url)
         guard let md = try? await asset.load(.commonMetadata) else { return nil }
         return md.first(where: { $0.commonKey?.rawValue == "albumName" })?.stringValue
+    }
+
+    /// Reads the genre once for tracks imported before genre support.
+    /// Applied in batches so a large library isn't re-sorted per track.
+    private func backfillGenres() {
+        let pending = tracks.filter { $0.genre == nil && !$0.isMissing }
+            .map { ($0.id, fileURL(for: $0)) }
+        guard !pending.isEmpty else { return }
+        Task { [weak self] in
+            var found: [UUID: String] = [:]
+            for (index, (id, url)) in pending.enumerated() {
+                found[id] = await GenreTag.read(at: url) ?? ""
+                if found.count == 200 || index == pending.count - 1 {
+                    self?.applyGenres(found)
+                    found.removeAll()
+                }
+            }
+        }
+    }
+
+    private func applyGenres(_ genres: [UUID: String]) {
+        tracks = tracks.map { track in
+            guard track.genre == nil, let genre = genres[track.id] else { return track }
+            return track.withGenre(genre)
+        }
+        save()
     }
 
     private static func readDuration(at url: URL) async -> Double? {
@@ -642,6 +680,7 @@ final class LocalLibraryManager: ObservableObject {
             fileSizeBytes: current.fileSizeBytes,
             durationSeconds: current.durationSeconds,
             album: current.album,
+            genre: current.genre,
             isMissing: current.isMissing
         )
         save()
@@ -739,6 +778,7 @@ final class LocalLibraryManager: ObservableObject {
             fileSizeBytes: current.fileSizeBytes,
             durationSeconds: current.durationSeconds,
             album: current.album,
+            genre: current.genre,
             isMissing: current.isMissing
         )
         save()
