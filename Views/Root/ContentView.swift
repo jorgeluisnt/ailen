@@ -14,6 +14,7 @@ struct ContentView: View {
     @EnvironmentObject private var smartPlaylistsManager: SmartPlaylistsManager
     @EnvironmentObject private var savedEQProfilesManager: SavedEQProfilesManager
     @EnvironmentObject private var librarySearchManager: LibrarySearchManager
+    @EnvironmentObject private var nav: NavigationCoordinator
 
     @State private var selectedTab: AppTab
     @State private var showFullPlayer = false
@@ -122,6 +123,8 @@ struct ContentView: View {
             bannerDismiss?.cancel()
             bannerDismiss = Task { await dismissBanner() }
         }
+        // Player sheets live at the root so they open from any screen.
+        .sheet(item: $nav.presentedSheet) { PlayerSheetContent(sheet: $0) }
         .preferredColorScheme(themeManager.isDarkMode ? .dark : .light)
         .onChange(of: settingsManager.defaultStartTab) { newValue in
             switch newValue {

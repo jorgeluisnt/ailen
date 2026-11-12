@@ -30,8 +30,8 @@ DEVICE ?= $(shell xcrun devicectl list devices 2>/dev/null \
 	| grep -E 'available|connected' | grep -v simulated \
 	| grep -oE '[0-9A-F]{8}-[0-9A-F]{16}|[0-9A-F]{8}(-[0-9A-F]{4}){3}-[0-9A-F]{12}' | head -1)
 
-# 1 = iPhone only (runs scaled on iPad). 1,2 = native iPad layout.
-DEVICE_FAMILY ?= 1
+# 1,2 = iPhone and native iPad (default). 1 = iPhone only (scaled on iPad).
+DEVICE_FAMILY ?= 1,2
 
 # First available iPhone simulator, whatever this Xcode happens to ship.
 # (Matched without parentheses on purpose — make can't parse an unbalanced

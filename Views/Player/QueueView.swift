@@ -121,13 +121,31 @@ struct QueueView: View {
     }
 
     private var queueList: some View {
+        QueueListContent(rowBackground: tokens.background, bottomInset: 60) { dismiss() }
+    }
+}
+
+/// The up-next list: tap to play, swipe to remove, drag to reorder (in edit
+/// mode). Shared by the queue sheet and the iPad Now Playing panel.
+struct QueueListContent: View {
+    @EnvironmentObject private var playerManager: PlayerManager
+    @EnvironmentObject private var themeManager: ThemeManager
+
+    var rowBackground: Color = .clear
+    var bottomInset: CGFloat = 0
+    /// Called when playing a row empties the queue.
+    var onQueueEmptied: () -> Void = {}
+
+    private var tokens: DesignTokens { themeManager.tokens }
+
+    var body: some View {
         List {
             ForEach(Array(playerManager.queue.enumerated()), id: \.element.id) { index, track in
                 Button {
                     Haptics.light()
                     playerManager.playFromQueue(at: index)
                     if playerManager.queue.isEmpty {
-                        dismiss()
+                        onQueueEmptied()
                     }
                 } label: {
                     HStack(spacing: DS.Spacing.sm) {
@@ -154,7 +172,7 @@ struct QueueView: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .listRowBackground(tokens.background)
+                .listRowBackground(rowBackground)
                 .listRowSeparatorTint(tokens.hairline)
                 .listRowInsets(EdgeInsets(top: 4, leading: DS.Spacing.lg, bottom: 4, trailing: DS.Spacing.lg))
             }
@@ -167,10 +185,12 @@ struct QueueView: View {
                 playerManager.moveInQueue(from: offsets, to: destination)
             }
 
-            Section {
-                Color.clear.frame(height: 60)
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
+            if bottomInset > 0 {
+                Section {
+                    Color.clear.frame(height: bottomInset)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                }
             }
         }
         .listStyle(.plain)
