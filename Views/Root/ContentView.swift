@@ -26,6 +26,7 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @StateObject private var screenAwake = ScreenAwakeController()
 
     /// Show/hide the full-screen player, skipping the slide spring when Reduce
     /// Motion is on (the view still cross-fades via its transition).
@@ -138,6 +139,11 @@ struct ContentView: View {
             bannerDismiss?.cancel()
             bannerDismiss = Task { await dismissBanner() }
         }
+        // Keep-awake / dim while music plays with the app in the foreground.
+        .onAppear { updateScreen() }
+        .onChange(of: playerManager.isPlaying) { _ in updateScreen() }
+        .onChange(of: settingsManager.screenWhilePlaying) { _ in updateScreen() }
+        .onChange(of: scenePhase) { _ in updateScreen() }
         // Every track that becomes current counts as played, whatever started
         // it (library, Home, queue, Next, remote controls). The only place
         // plays are recorded, so stats aren't counted twice.
@@ -188,6 +194,13 @@ struct ContentView: View {
                 showFullPlayer = true
             }
         }
+    }
+
+    /// Minimized (background/inactive) always lets the screen sleep.
+    private func updateScreen() {
+        screenAwake.update(playing: playerManager.isPlaying,
+                           foreground: scenePhase == .active,
+                           mode: settingsManager.screenWhilePlaying)
     }
 
     // MARK: - Persistence

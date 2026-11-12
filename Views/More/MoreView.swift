@@ -155,6 +155,34 @@ struct MoreView: View {
                 .padding(.horizontal, DS.Spacing.md)
                 .padding(.vertical, DS.Spacing.md)
 
+                Divider().background(tokens.hairline).padding(.leading, 56)
+
+                HStack(spacing: DS.Spacing.md) {
+                    iconBadge(systemName: "sun.max", color: tokens.accent)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Pantalla mientras suena")
+                            .font(DS.Typography.body)
+                            .foregroundColor(tokens.textPrimary)
+                        Text(screenModeExplanation)
+                            .font(DS.Typography.caption)
+                            .foregroundColor(tokens.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer()
+                    Picker("", selection: $settingsManager.screenWhilePlaying) {
+                        ForEach(ScreenWhilePlaying.allCases, id: \.self) { mode in
+                            Text(mode.displayName).tag(mode)
+                        }
+                    }
+                    .tint(tokens.highlightColor)
+                    .onChange(of: settingsManager.screenWhilePlaying) { _ in
+                        Haptics.selection()
+                        settingsManager.save()
+                    }
+                }
+                .padding(.horizontal, DS.Spacing.md)
+                .padding(.vertical, DS.Spacing.md)
+
             }
         }
     }
@@ -515,6 +543,14 @@ struct MoreView: View {
                     .padding(.vertical, DS.Spacing.md)
                 }
             }
+        }
+    }
+
+    private var screenModeExplanation: String {
+        switch settingsManager.screenWhilePlaying {
+        case .normal: return "Se apaga como siempre."
+        case .keepOn: return "Mientras suena con la app abierta, no se bloquea. Con la app minimizada se apaga como siempre."
+        case .keepOnDim: return "Mientras suena con la app abierta, no se bloquea y baja el brillo tras 30 s sin tocar. Minimizada, se apaga como siempre."
         }
     }
 

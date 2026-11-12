@@ -57,6 +57,8 @@ final class SettingsManager: ObservableObject {
     /// Library, not Favorites: a first-run user has no favorites and needs
     /// the Import button in front of them. A saved choice still wins (`load()`).
     @Published var defaultStartTab: DefaultStartTab = .library
+    /// Screen behaviour while the player is open and playing.
+    @Published var screenWhilePlaying: ScreenWhilePlaying = .normal
     @Published var isDarkMode: Bool = true
     @Published var selectedThemeID: String = "soundwave"
     /// Editable theme, as hex. Empty = Sound Wave default.
@@ -137,6 +139,8 @@ final class SettingsManager: ObservableObject {
     }
 
     private func load() {
+        if let raw = defaults.string(forKey: "screen_while_playing"),
+           let val = ScreenWhilePlaying(rawValue: raw) { screenWhilePlaying = val }
         if let raw = defaults.string(forKey: "default_start_tab"),
            let val = DefaultStartTab(rawValue: raw) { defaultStartTab = val }
         isDarkMode = defaults.object(forKey: "dark_mode") as? Bool ?? true
@@ -168,6 +172,7 @@ final class SettingsManager: ObservableObject {
 
     func save() {
         defaults.set(defaultStartTab.rawValue, forKey: "default_start_tab")
+        defaults.set(screenWhilePlaying.rawValue, forKey: "screen_while_playing")
         defaults.set(isDarkMode, forKey: "dark_mode")
         defaults.set(selectedThemeID, forKey: "theme_id")
         defaults.set(customAccentHex, forKey: "theme_custom_accent")
