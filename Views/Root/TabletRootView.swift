@@ -49,7 +49,7 @@ struct TabletRootView: View {
             TabletRail(selection: Binding(get: { section }, set: { sectionRaw = $0.rawValue }))
                 .frame(width: 80)
             NowPlayingPanel()
-                .frame(width: 340)
+                .frame(width: 355)
             content
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
