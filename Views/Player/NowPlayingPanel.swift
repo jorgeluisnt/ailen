@@ -6,6 +6,7 @@ struct NowPlayingPanel: View {
     @EnvironmentObject private var playerManager: PlayerManager
     @EnvironmentObject private var themeManager: ThemeManager
     @EnvironmentObject private var appleMusic: AppleMusicService
+    @EnvironmentObject private var spotify: SpotifyService
 
     @State private var sourceInfo: SourceAudioInfo?
     @State private var editMode: EditMode = .inactive
@@ -21,8 +22,8 @@ struct NowPlayingPanel: View {
                 .padding(.top, DS.Spacing.lg)
                 .accessibilityAddTraits(.isHeader)
 
-            if showsAppleMusic {
-                AppleMusicNowPlayingView(compact: true)
+            if let external {
+                ExternalNowPlayingView(model: external, compact: true)
                 Spacer()
             } else if let track = playerManager.currentTrack {
                 artwork
@@ -63,8 +64,8 @@ struct NowPlayingPanel: View {
         // Artwork and glass reach the screen edges (under the status bar and
         // home indicator); only the content respects the safe area.
         .background {
-            if showsAppleMusic {
-                ArtworkBlurBackground(url: nil, image: appleMusic.nowPlayingArtwork, tokens: tokens)
+            if let external {
+                ArtworkBlurBackground(url: nil, image: external.artwork, tokens: tokens)
             } else {
                 ArtworkBlurBackground(url: playerManager.currentArtworkURL, tokens: tokens)
             }
@@ -77,8 +78,8 @@ struct NowPlayingPanel: View {
         }
     }
 
-    /// Apple Music was started last: show and control it instead.
-    private var showsAppleMusic: Bool { appleMusic.isActiveSource && appleMusic.nowPlaying != nil }
+    /// Apple Music or Spotify was started last: show and control it instead.
+    private var external: ExternalNowPlaying? { ExternalNowPlaying.active(appleMusic: appleMusic, spotify: spotify) }
 
     private var artwork: some View {
         Group {

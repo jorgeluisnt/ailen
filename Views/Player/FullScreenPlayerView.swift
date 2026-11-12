@@ -4,6 +4,7 @@ struct FullScreenPlayerView: View {
     @EnvironmentObject private var playerManager: PlayerManager
     @EnvironmentObject private var themeManager: ThemeManager
     @EnvironmentObject private var appleMusic: AppleMusicService
+    @EnvironmentObject private var spotify: SpotifyService
     @EnvironmentObject private var nav: NavigationCoordinator
 
     var onDismiss: () -> Void
@@ -18,8 +19,8 @@ struct FullScreenPlayerView: View {
     var body: some View {
         ZStack {
             // Same backdrop as the iPad Now Playing panel.
-            if showsAppleMusic {
-                ArtworkBlurBackground(url: nil, image: appleMusic.nowPlayingArtwork, tokens: themeManager.tokens)
+            if let external {
+                ArtworkBlurBackground(url: nil, image: external.artwork, tokens: themeManager.tokens)
             } else {
                 ArtworkBlurBackground(url: playerManager.currentArtworkURL, tokens: themeManager.tokens)
             }
@@ -76,14 +77,14 @@ struct FullScreenPlayerView: View {
                     }
                     .accessibilityLabel(playerManager.queue.isEmpty ? "Mostrar cola" : "Mostrar cola, \(playerManager.queue.count) a continuación")
                     // The local queue doesn't apply to Apple Music.
-                    .opacity(showsAppleMusic ? 0 : 1)
-                    .disabled(showsAppleMusic)
+                    .opacity(showsExternal ? 0 : 1)
+                    .disabled(showsExternal)
                 }
                 .padding(.top, DS.Spacing.sm)
                 .padding(.bottom, 20)
 
-                if showsAppleMusic {
-                    AppleMusicNowPlayingView()
+                if let external {
+                    ExternalNowPlayingView(model: external)
                 } else if let track = playerManager.currentTrack {
                     artworkSection(track: track)
                     trackInfoSection(track: track)
@@ -122,7 +123,7 @@ struct FullScreenPlayerView: View {
                 .onEnded { value in
                     if value.translation.height > dragThreshold {
                         onDismiss()
-                    } else if value.translation.height < -dragThreshold * 0.6 && !showsAppleMusic {
+                    } else if value.translation.height < -dragThreshold * 0.6 && !showsExternal {
                         nav.presentedSheet = .queue  // Sound Wave: swipe up for the queue
                     }
                     withAnimation(.spring(response: 0.3)) {
@@ -137,8 +138,9 @@ struct FullScreenPlayerView: View {
         }
     }
 
-    /// Apple Music was started last: show and control it instead.
-    private var showsAppleMusic: Bool { appleMusic.isActiveSource && appleMusic.nowPlaying != nil }
+    /// Apple Music or Spotify was started last: show and control it instead.
+    private var external: ExternalNowPlaying? { ExternalNowPlaying.active(appleMusic: appleMusic, spotify: spotify) }
+    private var showsExternal: Bool { external != nil }
 
     // MARK: - Artwork
 

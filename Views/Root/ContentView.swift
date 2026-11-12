@@ -82,8 +82,8 @@ struct ContentView: View {
                 .frame(maxHeight: .infinity)
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     VStack(spacing: DS.Spacing.sm) {
-                        if appleMusic.isActiveSource && appleMusic.nowPlaying != nil {
-                            AppleMusicNowPlayingBar { setFullPlayer(true) }
+                        if let external = ExternalNowPlaying.active(appleMusic: appleMusic, spotify: spotify) {
+                            ExternalNowPlayingBar(model: external) { setFullPlayer(true) }
                         } else if playerManager.currentTrack != nil {
                             MiniPlayerView {
                                 setFullPlayer(true)
@@ -150,14 +150,26 @@ struct ContentView: View {
         .onChange(of: playerManager.isPlaying) { playing in
             // Music started (lock screen, panel, PiP): the video steps aside.
             if playing && videoPlayback.isPlaying { videoPlayback.pause() }
-            if playing { appleMusic.resignActiveSource() }
+            if playing {
+                appleMusic.resignActiveSource()
+                spotify.resignActiveSource()
+            }
             updateScreen()
         }
         .onChange(of: videoPlayback.isPlaying) { playing in
-            if playing { appleMusic.pause() }
+            if playing {
+                appleMusic.pause()
+                spotify.resignActiveSource()
+            }
             updateScreen()
         }
         .onChange(of: appleMusic.isPlaying) { _ in updateScreen() }
+        .onChange(of: spotify.isPlaying) { _ in updateScreen() }
+        // One external source at a time: Apple Music starting pauses Spotify
+        // (Spotify starting already pauses Apple Music itself).
+        .onChange(of: appleMusic.isActiveSource) { active in
+            if active { spotify.resignActiveSource() }
+        }
         // Spotify: login callback, settings and foreground/background.
         .onOpenURL { url in spotify.handle(url) }
         .onChange(of: settingsManager.spotifyEnabled) { _ in configureSpotify() }
@@ -243,7 +255,7 @@ struct ContentView: View {
 
     /// Minimized (background/inactive) always lets the screen sleep.
     private func updateScreen() {
-        screenAwake.update(playing: playerManager.isPlaying || appleMusic.isPlaying,
+        screenAwake.update(playing: playerManager.isPlaying || appleMusic.isPlaying || spotify.isPlaying,
                            videoPlaying: videoPlayback.isPlaying,
                            foreground: scenePhase == .active,
                            mode: settingsManager.screenWhilePlaying)
@@ -316,6 +328,9 @@ struct ContentView: View {
             tabBarButton(tab: .videos, icon: "film", label: "Videos")
             if settingsManager.appleMusicEnabled {
                 tabBarButton(tab: .appleMusic, icon: "music.note.house", label: "Apple Music")
+            }
+            if settingsManager.spotifyEnabled {
+                tabBarButton(tab: .spotify, icon: "dot.radiowaves.left.and.right", label: "Spotify")
             }
             tabBarButton(tab: .more, icon: "ellipsis", label: "Ajustes")
         }

@@ -262,6 +262,24 @@ final class SpotifyService: NSObject, ObservableObject {
         appRemote?.playerAPI?.setRepeatMode(next, callback: nil)
     }
 
+    /// Now Playing model for the shared external views.
+    var nowPlayingModel: ExternalNowPlaying? {
+        guard let track = nowPlaying else { return nil }
+        let repeatState: ExternalNowPlaying.Repeat = track.repeatMode == 1 ? .one : (track.repeatMode == 2 ? .all : .off)
+        return ExternalNowPlaying(
+            source: "Spotify", title: track.title, artist: track.artist, artwork: artwork,
+            isPlaying: isPlaying, shuffleOn: track.isShuffling, repeatState: repeatState,
+            duration: TimeInterval(track.durationMs) / 1000,
+            position: { [weak self] in self?.nowPlaying?.position() ?? 0 },
+            note: "Reproducido por la app de Spotify · sin ecualizador ni datos de calidad",
+            playPause: { [weak self] in self?.togglePlayPause() },
+            next: { [weak self] in self?.skipToNext() },
+            previous: { [weak self] in self?.skipToPrevious() },
+            toggleShuffle: { [weak self] in self?.toggleShuffle() },
+            cycleRepeat: { [weak self] in self?.cycleRepeat() },
+            seek: { [weak self] in self?.seek(to: $0) })
+    }
+
     /// Local music or Apple Music took over: pause Spotify, hand Now Playing back.
     func resignActiveSource() {
         if isPlaying { appRemote?.playerAPI?.pause(nil) }

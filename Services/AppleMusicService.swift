@@ -162,6 +162,23 @@ final class AppleMusicService: ObservableObject {
 
     var nowPlayingArtwork: UIImage? { Self.artwork(nowPlaying?.item, size: 600) }
 
+    /// Now Playing model for the shared external views.
+    var nowPlayingModel: ExternalNowPlaying? {
+        guard let song = nowPlaying else { return nil }
+        let repeatState: ExternalNowPlaying.Repeat = repeatMode == .one ? .one : (repeatMode == .all ? .all : .off)
+        return ExternalNowPlaying(
+            source: "Apple Music", title: song.title, artist: song.artist, artwork: nowPlayingArtwork,
+            isPlaying: isPlaying, shuffleOn: shuffleOn, repeatState: repeatState, duration: song.duration,
+            position: { [weak self] in self?.currentTime ?? 0 },
+            note: "Reproducido por Apple Music · sin ecualizador ni datos de calidad",
+            playPause: { [weak self] in self?.togglePlayPause() },
+            next: { [weak self] in self?.skipToNext() },
+            previous: { [weak self] in self?.skipToPrevious() },
+            toggleShuffle: { [weak self] in self?.toggleShuffle() },
+            cycleRepeat: { [weak self] in self?.cycleRepeat() },
+            seek: { [weak self] in self?.seek(to: $0) })
+    }
+
     func skipToNext() { player?.skipToNextItem() }
     func skipToPrevious() { player?.skipToPreviousItem() }
 

@@ -10,7 +10,7 @@ enum TabletLayout {
 
 /// Sections of the iPad rail. Raw values are persisted.
 enum TabletSection: String, CaseIterable, Identifiable {
-    case home, library, playlists, favorites, videos, appleMusic, settings
+    case home, library, playlists, favorites, videos, appleMusic, spotify, settings
 
     var id: String { rawValue }
 
@@ -22,6 +22,7 @@ enum TabletSection: String, CaseIterable, Identifiable {
         case .favorites: return "Favoritos"
         case .videos: return "Videos"
         case .appleMusic: return "Apple Music"
+        case .spotify: return "Spotify"
         case .settings: return "Ajustes"
         }
     }
@@ -34,6 +35,7 @@ enum TabletSection: String, CaseIterable, Identifiable {
         case .favorites: return "heart"
         case .videos: return "film"
         case .appleMusic: return "music.note.house"
+        case .spotify: return "dot.radiowaves.left.and.right"
         case .settings: return "gearshape"
         }
     }
@@ -49,8 +51,10 @@ struct TabletRootView: View {
 
     private var section: TabletSection {
         let stored = TabletSection(rawValue: sectionRaw) ?? .home
-        // Apple Music switched off while it was selected → back to Home.
-        return stored == .appleMusic && !settingsManager.appleMusicEnabled ? .home : stored
+        // An optional source switched off while it was selected → back to Home.
+        if stored == .appleMusic && !settingsManager.appleMusicEnabled { return .home }
+        if stored == .spotify && !settingsManager.spotifyEnabled { return .home }
+        return stored
     }
 
     var body: some View {
@@ -74,6 +78,7 @@ struct TabletRootView: View {
         case .favorites: FavoritesView()
         case .videos: VideosView()
         case .appleMusic: AppleMusicView()
+        case .spotify: SpotifyView()
         case .settings: MoreView()
         }
     }
@@ -100,7 +105,8 @@ struct TabletRail: View {
                 .accessibilityLabel("Ailen")
 
             ForEach([TabletSection.home, .library, .playlists, .favorites, .videos]
-                    + (settingsManager.appleMusicEnabled ? [.appleMusic] : [])) { item in
+                    + (settingsManager.appleMusicEnabled ? [.appleMusic] : [])
+                    + (settingsManager.spotifyEnabled ? [.spotify] : [])) { item in
                 railButton(item.icon, item.title, selected: selection == item) { selection = item }
             }
             // The equalizer opens as a sheet, like from the player.
