@@ -10,9 +10,9 @@ enum SmartSource: String, Codable, CaseIterable, Hashable {
 
     var label: String {
         switch self {
-        case .localFile: return "Local files"
-        case .download: return "Downloads"
-        case .favorite: return "Favorites"
+        case .localFile: return "Archivos locales"
+        case .download: return "Descargas"
+        case .favorite: return "Favoritos"
         }
     }
 }
@@ -27,9 +27,9 @@ enum SmartRecency: String, Codable, CaseIterable, Hashable {
 
     var label: String {
         switch self {
-        case .any: return "Any"
-        case .recentlyPlayed: return "Recently played"
-        case .notRecentlyPlayed: return "Not recently played"
+        case .any: return "Cualquiera"
+        case .recentlyPlayed: return "Reproducidas recientemente"
+        case .notRecentlyPlayed: return "No reproducidas recientemente"
         }
     }
 }
@@ -43,11 +43,11 @@ enum SmartSort: String, Codable, CaseIterable, Hashable {
 
     var label: String {
         switch self {
-        case .newestAdded: return "Newest first"
-        case .title: return "Title"
-        case .artist: return "Artist"
-        case .longest: return "Longest first"
-        case .shuffle: return "Shuffle"
+        case .newestAdded: return "Más recientes primero"
+        case .title: return "Título"
+        case .artist: return "Artista"
+        case .longest: return "Más largas primero"
+        case .shuffle: return "Aleatorio"
         }
     }
 }

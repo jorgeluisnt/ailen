@@ -21,12 +21,12 @@ struct MissingTrackRepairSheet: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 16) {
-                Text("Track Unavailable")
+                Text("Canción no disponible")
                     .font(.title2)
                     .fontWeight(.semibold)
                     .foregroundColor(tokens.textPrimary)
 
-                Text("The file '\(track.fileName)' (\(track.fileSizeBytes / 1_000_000) MB) is no longer in this app's storage. This can happen if you cleared the app's data or restored from a backup.")
+                Text("El archivo '\(track.fileName)' (\(track.fileSizeBytes / 1_000_000) MB) ya no está en el almacenamiento de esta app. Puede ocurrir si borraste los datos de la app o restauraste una copia de seguridad.")
                     .font(.body)
                     .foregroundColor(tokens.textSecondary)
                     .multilineTextAlignment(.center)
@@ -37,25 +37,25 @@ struct MissingTrackRepairSheet: View {
                 Button {
                     showingImporter = true
                 } label: {
-                    Text("Re-import…")
+                    Text("Volver a importar…")
                         .frame(maxWidth: .infinity)
                         .padding()
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(tokens.accent)
-                .accessibilityLabel("Re-import the missing audio file")
+                .accessibilityLabel("Volver a importar el archivo de audio que falta")
 
                 Button(role: .destructive) {
                     onRemove()
                     onDismiss()
                     dismiss()
                 } label: {
-                    Text("Remove from Library")
+                    Text("Quitar de la biblioteca")
                         .frame(maxWidth: .infinity)
                         .padding()
                 }
                 .buttonStyle(.bordered)
-                .accessibilityLabel("Remove the missing track from the library")
+                .accessibilityLabel("Quitar de la biblioteca la canción que falta")
             }
             .padding()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -63,7 +63,7 @@ struct MissingTrackRepairSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
+                    Button("Cancelar") {
                         onDismiss()
                         dismiss()
                     }

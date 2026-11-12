@@ -30,7 +30,7 @@ struct SmartPlaylistDetailView: View {
                     content(playlist)
                 } else {
                     // Deleted while open — nothing to show.
-                    Text("Smart playlist deleted")
+                    Text("Lista inteligente eliminada")
                         .font(DS.Typography.caption)
                         .foregroundColor(tokens.textSecondary)
                 }
@@ -45,11 +45,11 @@ struct SmartPlaylistDetailView: View {
                             editorDraft = playlist
                         }
                     } label: {
-                        Text("Edit")
+                        Text("Editar")
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { dismiss() }
+                    Button("Listo") { dismiss() }
                 }
             }
         }
@@ -68,10 +68,10 @@ struct SmartPlaylistDetailView: View {
                     Image(systemName: "wand.and.stars")
                         .font(.system(size: 40, weight: .light))
                         .foregroundColor(tokens.textSecondary)
-                    Text("No matches yet")
+                    Text("Aún no hay coincidencias")
                         .font(DS.Typography.titleMedium)
                         .foregroundColor(tokens.textPrimary)
-                    Text("Tracks that satisfy the rules will appear here automatically.")
+                    Text("Las canciones que cumplan las reglas aparecerán aquí automáticamente.")
                         .font(DS.Typography.caption)
                         .foregroundColor(tokens.textSecondary)
                         .multilineTextAlignment(.center)
@@ -94,7 +94,7 @@ struct SmartPlaylistDetailView: View {
 
     private func header(_ playlist: SmartPlaylist, tracks: [Track]) -> some View {
         VStack(spacing: DS.Spacing.sm) {
-            Text("\(tracks.count) track\(tracks.count == 1 ? "" : "s") · live")
+            Text("\(tracks.count) \(tracks.count == 1 ? "canción" : "canciones") · dinámica")
                 .font(DS.Typography.caption)
                 .foregroundColor(tokens.textSecondary)
 
@@ -103,7 +103,7 @@ struct SmartPlaylistDetailView: View {
                     Haptics.medium()
                     playerManager.playSlice(tracks, startIndex: 0)
                 } label: {
-                    Label("Play", systemImage: "play.fill")
+                    Label("Reproducir", systemImage: "play.fill")
                         .font(DS.Typography.bodyEm)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
@@ -115,7 +115,7 @@ struct SmartPlaylistDetailView: View {
                     Haptics.medium()
                     playerManager.playSlice(tracks.shuffled(), startIndex: 0)
                 } label: {
-                    Label("Shuffle", systemImage: "shuffle")
+                    Label("Aleatorio", systemImage: "shuffle")
                         .font(DS.Typography.bodyEm)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)

@@ -14,10 +14,10 @@ final class AutoEQCatalog: ObservableObject {
 
         var errorDescription: String? {
             switch self {
-            case .indexMissing: return "The bundled AutoEQ index is missing."
-            case .badURL: return "Couldn't build the profile URL."
-            case .badStatus(let code): return "AutoEQ fetch failed (HTTP \(code)). Check your connection and try again."
-            case .notText: return "The downloaded profile wasn't readable text."
+            case .indexMissing: return "Falta el índice de AutoEQ incluido en la app."
+            case .badURL: return "No se pudo construir la URL del perfil."
+            case .badStatus(let code): return "No se pudo descargar el perfil de AutoEQ (HTTP \(code)). Comprueba tu conexión e inténtalo de nuevo."
+            case .notText: return "El perfil descargado no es texto legible."
             }
         }
     }

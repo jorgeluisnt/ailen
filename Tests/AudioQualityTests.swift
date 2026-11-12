@@ -1,5 +1,5 @@
 import XCTest
-@testable import Aria___Music_Browser
+@testable import Ailen
 
 /// Pure-function coverage for `AudioQuality.forFile`, the badge model.
 final class AudioQualityTests: XCTestCase {
@@ -15,7 +15,7 @@ final class AudioQualityTests: XCTestCase {
         XCTAssertEqual(AudioQuality.forFile(fileName: "a.wav", sizeBytes: 1, durationSeconds: 1).display, "WAV")
         XCTAssertEqual(AudioQuality.forFile(fileName: "a.alac", sizeBytes: 1, durationSeconds: 1).display, "ALAC")
         // AIFF collapses to a generic "Lossless" label.
-        XCTAssertEqual(AudioQuality.forFile(fileName: "a.aiff", sizeBytes: 1, durationSeconds: 1).display, "Lossless")
+        XCTAssertEqual(AudioQuality.forFile(fileName: "a.aiff", sizeBytes: 1, durationSeconds: 1).display, "Sin pérdida")
     }
 
     func test_lossy_withDuration_computesKbpsTier() {

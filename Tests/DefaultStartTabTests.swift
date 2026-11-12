@@ -1,5 +1,5 @@
 import XCTest
-@testable import Aria___Music_Browser
+@testable import Ailen
 
 /// A brand-new install must land somewhere useful. Favorites is empty on
 /// first run by definition; Library has the Import call-to-action.
@@ -18,6 +18,8 @@ final class DefaultStartTabTests: XCTestCase {
 
     func test_libraryIsAnOption_andPersistsByRawValue() {
         XCTAssertEqual(DefaultStartTab(rawValue: "Library"), .library)
+        XCTAssertEqual(DefaultStartTab.library.displayName, "Biblioteca")
+        XCTAssertEqual(DefaultStartTab.library.rawValue, "Library")
         XCTAssertTrue(DefaultStartTab.allCases.contains(.library),
                       "the More → Default Start Page picker iterates allCases")
     }

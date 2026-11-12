@@ -34,7 +34,7 @@ enum AudioFormat: String, Equatable {
         case .opus: return "Opus"
         case .wav: return "WAV"
         case .wma: return "WMA"
-        case .unknown: return "Unknown"
+        case .unknown: return "Desconocido"
         }
     }
 

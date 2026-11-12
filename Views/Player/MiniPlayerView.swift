@@ -2,7 +2,6 @@ import SwiftUI
 
 struct MiniPlayerView: View {
     @EnvironmentObject private var playerManager: PlayerManager
-    @EnvironmentObject private var clock: PlaybackClock
     @EnvironmentObject private var themeManager: ThemeManager
     var onTap: () -> Void
 
@@ -10,74 +9,52 @@ struct MiniPlayerView: View {
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 8) {
-                Image(systemName: "chevron.up")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.secondary)
-                    .frame(width: 28)
-
+            HStack(spacing: DS.Spacing.md) {
                 if let track = playerManager.currentTrack {
+                    // Sound Wave: round artwork inside a gradient progress ring.
                     artworkThumbnail
-                        .frame(width: 36, height: 36)
-                        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                        .frame(width: 42, height: 42)
+                        .clipShape(Circle())
+                        .padding(4)
+                        .overlay(MiniProgressRing(tokens: tokens))
 
-                    VStack(alignment: .leading, spacing: 1) {
+                    VStack(alignment: .leading, spacing: 2) {
                         Text(track.title)
-                            .scaledFont(size: 13, weight: .semibold, relativeTo: .footnote)
+                            .scaledFont(size: 15, weight: .semibold, relativeTo: .subheadline)
                             .lineLimit(1)
-                            .foregroundColor(.primary)
+                            .foregroundColor(tokens.highlightColor)
                         subtitle
                     }
                 } else {
-                    Text("Not playing")
+                    Text("Nada en reproducción")
                         .scaledFont(size: 13, relativeTo: .footnote)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(tokens.textSecondary)
                 }
 
                 Spacer()
 
+                if playerManager.currentTrack != nil {
+                    MiniElapsedTime(tokens: tokens)
+                }
+
                 trailingButton
             }
-            .padding(.leading, 4)
-            .padding(.trailing, 8)
-            .frame(height: 44)
+            .padding(.leading, DS.Spacing.sm)
+            .padding(.trailing, DS.Spacing.sm)
+            .frame(height: 64)
             // Fixed-height chrome: let text scale through the standard sizes but
-            // clamp before the accessibility sizes clip the 44pt bar.
+            // clamp before the accessibility sizes clip the bar.
             .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-            .background(.ultraThinMaterial)
-            .overlay(alignment: .top) {
-                if playerManager.currentTrack != nil {
-                    progressBar
-                }
-            }
+            .glassSurface(in: RoundedRectangle(cornerRadius: 26, style: .continuous), interactive: true)
         }
         .buttonStyle(.plain)
-        .accessibilityHint("Opens the full screen player")
-    }
-
-    /// Thin playback-progress bar pinned to the top edge of the mini player.
-    /// Driven by `clock` (not `playerManager`) so the 4 Hz position tick
-    /// repaints only this 2 pt bar, never the whole view tree.
-    @ViewBuilder
-    private var progressBar: some View {
-        GeometryReader { geo in
-            let fraction = clock.duration > 0
-                ? min(max(clock.currentTime / clock.duration, 0), 1)
-                : 0
-            ZStack(alignment: .leading) {
-                Rectangle().fill(Color.primary.opacity(0.12))
-                Rectangle().fill(Color.primary.opacity(0.55))
-                    .frame(width: geo.size.width * fraction)
-            }
-        }
-        .frame(height: 2)
-        .accessibilityHidden(true)
+        .accessibilityHint("Abre el reproductor a pantalla completa")
     }
 
     @ViewBuilder
     private var artworkThumbnail: some View {
         if let url = playerManager.currentArtworkURL {
-            AsyncCachedImage(url: url, targetSize: 36) {
+            AsyncCachedImage(url: url, targetSize: 42) {
                 ArtworkPlaceholder(tokens: tokens, cornerRadius: 4)
             }
         } else {
@@ -88,9 +65,9 @@ struct MiniPlayerView: View {
     @ViewBuilder
     private var subtitle: some View {
         Text(playerManager.currentTrack?.artist ?? "")
-            .scaledFont(size: 11, relativeTo: .caption)
+            .scaledFont(size: 12, relativeTo: .caption)
             .lineLimit(1)
-            .foregroundColor(.secondary)
+            .foregroundColor(tokens.textSecondary)
     }
 
     @ViewBuilder
@@ -101,12 +78,12 @@ struct MiniPlayerView: View {
             } label: {
                 Image(systemName: playerManager.isPlaying ? "pause.fill" : "play.fill")
                     .font(.system(size: 18))
-                    .foregroundColor(.primary)
+                    .foregroundColor(tokens.textPrimary)
                     .frame(width: 40, height: 40)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(playerManager.isPlaying ? "Pause" : "Play")
+            .accessibilityLabel(playerManager.isPlaying ? "Pausar" : "Reproducir")
 
             Button {
                 Haptics.light()
@@ -114,13 +91,50 @@ struct MiniPlayerView: View {
             } label: {
                 Image(systemName: "forward.fill")
                     .font(.system(size: 16))
-                    .foregroundColor(playerManager.hasNext ? .primary : Color.secondary.opacity(0.5))
+                    .foregroundColor(playerManager.hasNext ? tokens.textPrimary : tokens.textSecondary.opacity(0.5))
                     .frame(width: 40, height: 40)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .disabled(!playerManager.hasNext)
-            .accessibilityLabel("Next track")
+            .accessibilityLabel("Siguiente canción")
         }
+    }
+}
+
+/// Gradient ring showing playback progress around the mini-player artwork.
+/// Its own view observing `clock`, so the 4 Hz position tick repaints only
+/// the ring, never the whole bar.
+private struct MiniProgressRing: View {
+    @EnvironmentObject private var clock: PlaybackClock
+    let tokens: DesignTokens
+
+    var body: some View {
+        let fraction = clock.duration > 0 ? min(max(clock.currentTime / clock.duration, 0), 1) : 0
+        ZStack {
+            Circle().stroke(tokens.textSecondary.opacity(0.25), lineWidth: 2.5)
+            Circle()
+                .trim(from: 0, to: fraction)
+                .stroke(AngularGradient(colors: [tokens.accent, tokens.accentEnd ?? tokens.accent, tokens.accent],
+                                        center: .center),
+                        style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+/// Elapsed time, also isolated from the bar's redraws.
+private struct MiniElapsedTime: View {
+    @EnvironmentObject private var clock: PlaybackClock
+    let tokens: DesignTokens
+
+    var body: some View {
+        let seconds = Int(max(clock.currentTime, 0))
+        Text(String(format: "%d:%02d", seconds / 60, seconds % 60))
+            .scaledFont(size: 13, relativeTo: .footnote)
+            .monospacedDigit()
+            .foregroundColor(tokens.textPrimary)
+            .accessibilityHidden(true)
     }
 }

@@ -23,11 +23,11 @@ struct SpeedPitchSheet: View {
                     .padding(DS.Spacing.lg)
                 }
             }
-            .navigationTitle("Speed & Pitch")
+            .navigationTitle("Velocidad y tono")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                    Button("Listo") { dismiss() }
                 }
             }
         }
@@ -38,27 +38,27 @@ struct SpeedPitchSheet: View {
 
     private var speedRow: some View {
         tuningRow(
-            title: "Speed",
+            title: "Velocidad",
             readout: String(format: "%.2f×", playerManager.playbackRate),
             value: Binding(get: { playerManager.playbackRate },
                            set: { playerManager.setPlaybackRate($0) }),
             range: PlaybackTuning.speedRange,
             step: PlaybackTuning.speedStep,
             defaultValue: PlaybackTuning.defaultSpeed,
-            accessibilityUnit: "times speed"
+            accessibilityUnit: "veces la velocidad"
         )
     }
 
     private var pitchRow: some View {
         tuningRow(
-            title: "Pitch",
+            title: "Tono",
             readout: pitchReadout,
             value: Binding(get: { playerManager.playbackPitch },
                            set: { playerManager.setPlaybackPitch($0) }),
             range: PlaybackTuning.pitchRange,
             step: PlaybackTuning.pitchStep,
             defaultValue: PlaybackTuning.defaultPitch,
-            accessibilityUnit: "semitones"
+            accessibilityUnit: "semitonos"
         )
     }
 
@@ -75,8 +75,8 @@ struct SpeedPitchSheet: View {
         // Rounded to the readout's precision so it can't print "-0.0".
         let shown = (net * 10).rounded() / 10
         let text = shown == 0
-            ? "Sounds at the original pitch"
-            : String(format: "Sounds %+.1f semitones from the original", shown)
+            ? "Suena en el tono original"
+            : String(format: "Suena %+.1f semitonos respecto al original", shown)
         return Text(text)
             .font(DS.Typography.caption)
             .foregroundColor(tokens.textSecondary)
@@ -101,16 +101,16 @@ struct SpeedPitchSheet: View {
                     .monospacedDigit()
                     .foregroundColor(value.wrappedValue == defaultValue ? tokens.textSecondary : tokens.accent)
                 Spacer()
-                Button("Reset") {
+                Button("Restablecer") {
                     Haptics.light()
                     value.wrappedValue = defaultValue
                 }
                 .font(DS.Typography.caption)
                 .disabled(value.wrappedValue == defaultValue)
-                .accessibilityLabel("Reset \(title.lowercased())")
+                .accessibilityLabel("Restablecer \(title.lowercased())")
             }
             HStack(spacing: DS.Spacing.sm) {
-                stepButton(systemName: "minus", label: "Decrease \(title.lowercased())") {
+                stepButton(systemName: "minus", label: "Disminuir \(title.lowercased())") {
                     value.wrappedValue = value.wrappedValue - step
                 }
                 .disabled(value.wrappedValue <= range.lowerBound)
@@ -120,7 +120,7 @@ struct SpeedPitchSheet: View {
                     .accessibilityLabel(title)
                     .accessibilityValue("\(readout) \(accessibilityUnit)")
 
-                stepButton(systemName: "plus", label: "Increase \(title.lowercased())") {
+                stepButton(systemName: "plus", label: "Aumentar \(title.lowercased())") {
                     value.wrappedValue = value.wrappedValue + step
                 }
                 .disabled(value.wrappedValue >= range.upperBound)

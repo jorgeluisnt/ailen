@@ -23,7 +23,7 @@ enum M3UPlaylist {
     enum ParseError: LocalizedError, Equatable {
         case noEntries
         var errorDescription: String? {
-            "No playable entries found in that playlist file."
+            "No se encontraron entradas reproducibles en ese archivo de lista."
         }
     }
 

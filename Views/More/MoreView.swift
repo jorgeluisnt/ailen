@@ -27,7 +27,6 @@ struct MoreView: View {
                     VStack(spacing: DS.Spacing.xl) {
                         heroHeader
                         settingsSection
-                        backendSection
                         advancedSection
                         extrasSection
                         versionFooter
@@ -37,53 +36,53 @@ struct MoreView: View {
                     .padding(.bottom, 120)
                 }
             }
-            .navigationTitle("More")
+            .navigationTitle("Ajustes")
             .navigationBarTitleDisplayMode(.inline)
         }
-        .alert("Clear Search History", isPresented: $showClearHistoryAlert) {
-            Button("Cancel", role: .cancel) {}
-            Button("Clear", role: .destructive) {
+        .alert("Borrar historial de búsqueda", isPresented: $showClearHistoryAlert) {
+            Button("Cancelar", role: .cancel) {}
+            Button("Borrar", role: .destructive) {
                 Haptics.warning()
                 settingsManager.clearSearchHistory()
             }
         } message: {
-            Text("This will remove all your recent searches.")
+            Text("Se eliminarán todas tus búsquedas recientes.")
         }
-        .alert("Clear Cache", isPresented: $showClearCacheAlert) {
-            Button("Cancel", role: .cancel) {}
-            Button("Clear", role: .destructive) {
+        .alert("Borrar caché", isPresented: $showClearCacheAlert) {
+            Button("Cancelar", role: .cancel) {}
+            Button("Borrar", role: .destructive) {
                 Haptics.warning()
                 URLCache.shared.removeAllCachedResponses()
             }
         } message: {
-            Text("This will clear all cached images and data.")
+            Text("Se borrarán todas las imágenes y datos en caché.")
         }
-        .alert("Clear All Favorites", isPresented: $showClearFavoritesAlert) {
-            Button("Cancel", role: .cancel) {}
-            Button("Clear All", role: .destructive) {
+        .alert("Borrar todos los favoritos", isPresented: $showClearFavoritesAlert) {
+            Button("Cancelar", role: .cancel) {}
+            Button("Borrar todo", role: .destructive) {
                 Haptics.warning()
                 favoritesManager.removeAll()
             }
         } message: {
-            Text("This will permanently remove all your favorites. This action cannot be undone.")
+            Text("Se eliminarán todos tus favoritos de forma permanente. Esta acción no se puede deshacer.")
         }
-        .alert("Delete All Playlists", isPresented: $showDeletePlaylistsAlert) {
-            Button("Cancel", role: .cancel) {}
-            Button("Delete All", role: .destructive) {
+        .alert("Eliminar todas las listas", isPresented: $showDeletePlaylistsAlert) {
+            Button("Cancelar", role: .cancel) {}
+            Button("Eliminar todas", role: .destructive) {
                 Haptics.warning()
                 playlistsManager.deleteAll()
             }
         } message: {
-            Text("This will permanently delete all playlists. This action cannot be undone.")
+            Text("Se eliminarán todas las listas de forma permanente. Esta acción no se puede deshacer.")
         }
-        .alert("Clear Listening History", isPresented: $showClearListeningHistoryAlert) {
-            Button("Cancel", role: .cancel) {}
-            Button("Clear", role: .destructive) {
+        .alert("Borrar historial de escucha", isPresented: $showClearListeningHistoryAlert) {
+            Button("Cancelar", role: .cancel) {}
+            Button("Borrar", role: .destructive) {
                 Haptics.warning()
                 recentlyPlayedManager.clearAll()
             }
         } message: {
-            Text("This clears Recently Played and Recently Added, which drive the personalized rows on the Search page.")
+            Text("Se borrarán los registros de Reproducidas recientemente y Añadidas recientemente.")
         }
     }
 
@@ -108,10 +107,10 @@ struct MoreView: View {
             }
 
             VStack(spacing: 4) {
-                Text("Aria")
+                Text("Ailen")
                     .font(DS.Typography.display)
                     .foregroundColor(tokens.textPrimary)
-                Text("Music, your way")
+                Text("Tu música, a tu manera")
                     .font(DS.Typography.caption)
                     .foregroundColor(tokens.textSecondary)
             }
@@ -123,20 +122,20 @@ struct MoreView: View {
     // MARK: - Settings
 
     private var settingsSection: some View {
-        MoreCard(title: "Settings", tokens: tokens) {
+        MoreCard(title: "Ajustes", tokens: tokens) {
             VStack(spacing: 0) {
                 HStack(spacing: DS.Spacing.md) {
                     iconBadge(systemName: "house", color: tokens.accent)
-                    Text("Default Start Page")
+                    Text("Pantalla inicial")
                         .font(DS.Typography.body)
                         .foregroundColor(tokens.textPrimary)
                     Spacer()
                     Picker("", selection: $settingsManager.defaultStartTab) {
-                        ForEach(DefaultStartTab.allCases, id: \.self) { tab in
-                            Text(tab.rawValue).tag(tab)
+                        ForEach(DefaultStartTab.allCases.filter { $0 != .search }, id: \.self) { tab in
+                            Text(tab.displayName).tag(tab)
                         }
                     }
-                    .tint(tokens.accent)
+                    .tint(tokens.highlightColor)
                     .onChange(of: settingsManager.defaultStartTab) { _ in
                         Haptics.selection()
                         settingsManager.save()
@@ -145,15 +144,6 @@ struct MoreView: View {
                 .padding(.horizontal, DS.Spacing.md)
                 .padding(.vertical, DS.Spacing.md)
 
-                Divider().background(tokens.hairline).padding(.leading, 56)
-
-                Button {
-                    Haptics.warning()
-                    showClearHistoryAlert = true
-                } label: {
-                    row(icon: "magnifyingglass", iconColor: tokens.accent, title: "Clear Search History", isButton: true)
-                }
-                .buttonStyle(.plain)
             }
         }
     }
@@ -164,13 +154,13 @@ struct MoreView: View {
     /// backend; with no server configured it runs as a local-files-only
     /// player (the Search tab hides — see ContentView).
     private var backendSection: some View {
-        MoreCard(title: "Backend", tokens: tokens) {
+        MoreCard(title: "Servidor", tokens: tokens) {
             VStack(spacing: 0) {
                 // Type comes first: it decides what the fields below even mean
                 // (API key for Aria's backend, username/password for Subsonic).
                 HStack(spacing: DS.Spacing.md) {
                     iconBadge(systemName: "point.3.connected.trianglepath.dotted", color: tokens.accent)
-                    Text("Server Type")
+                    Text("Tipo de servidor")
                         .font(DS.Typography.body)
                         .foregroundColor(tokens.textPrimary)
                     Spacer()
@@ -179,7 +169,7 @@ struct MoreView: View {
                             Text(kind.label).tag(kind)
                         }
                     }
-                    .tint(tokens.accent)
+                    .tint(tokens.highlightColor)
                     // Without this the menu label wraps to two lines in the row.
                     .fixedSize()
                 }
@@ -206,7 +196,7 @@ struct MoreView: View {
                 if settingsManager.serverKind == .subsonic {
                     HStack(spacing: DS.Spacing.md) {
                         iconBadge(systemName: "person", color: tokens.accent)
-                        TextField("Username", text: $settingsManager.subsonicUsername)
+                        TextField("Usuario", text: $settingsManager.subsonicUsername)
                             .font(DS.Typography.body)
                             .foregroundColor(tokens.textPrimary)
                             .textInputAutocapitalization(.never)
@@ -219,7 +209,7 @@ struct MoreView: View {
 
                     HStack(spacing: DS.Spacing.md) {
                         iconBadge(systemName: "lock", color: tokens.accent)
-                        SecureField("Password", text: $settingsManager.subsonicPassword)
+                        SecureField("Contraseña", text: $settingsManager.subsonicPassword)
                             .font(DS.Typography.body)
                             .foregroundColor(tokens.textPrimary)
                             .textInputAutocapitalization(.never)
@@ -229,8 +219,8 @@ struct MoreView: View {
                     .padding(.vertical, DS.Spacing.md)
 
                     Text(settingsManager.credentialStorageFailed
-                         ? "Couldn't save the password to the Keychain — it will be forgotten when Aria quits."
-                         : "Stored in the iOS Keychain. Aria sends a salted token, never your password.")
+                         ? "No se pudo guardar la contraseña en el llavero; se olvidará cuando cierres Ailen."
+                         : "Guardada en el llavero de iOS. Ailen envía un token con sal, nunca tu contraseña.")
                         .font(DS.Typography.micro)
                         .foregroundColor(settingsManager.credentialStorageFailed ? .orange : tokens.textSecondary)
                         .padding(.horizontal, DS.Spacing.md)
@@ -240,7 +230,7 @@ struct MoreView: View {
                 } else {
                     HStack(spacing: DS.Spacing.md) {
                         iconBadge(systemName: "key", color: tokens.accent)
-                        SecureField("API key (optional)", text: $settingsManager.backendAPIKeyOverride)
+                        SecureField("Clave de API (opcional)", text: $settingsManager.backendAPIKeyOverride)
                             .font(DS.Typography.body)
                             .foregroundColor(tokens.textPrimary)
                             .textInputAutocapitalization(.never)
@@ -257,7 +247,7 @@ struct MoreView: View {
                     testConnection()
                 } label: {
                     row(icon: "antenna.radiowaves.left.and.right", iconColor: tokens.accent,
-                        title: "Test Connection", isButton: true)
+                        title: "Probar conexión", isButton: true)
                 }
                 .buttonStyle(.plain)
                 .disabled(connectionTest.isLoading)
@@ -299,15 +289,15 @@ struct MoreView: View {
         switch connectionTest {
         case .idle:
             Text(settingsManager.isServerConfigured
-                 ? "Server: \(settingsManager.resolvedBaseURL)"
-                 : "No server configured — local library only")
+                 ? "Servidor: \(settingsManager.resolvedBaseURL)"
+                 : "Sin servidor configurado: solo biblioteca local")
                 .font(DS.Typography.caption)
                 .foregroundColor(tokens.textSecondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
         case .loading:
             HStack(spacing: 6) {
                 ProgressView().controlSize(.small)
-                Text("Checking \(BackendConfig.baseURL)…")
+                Text("Comprobando \(BackendConfig.baseURL)…")
                     .font(DS.Typography.caption)
                     .foregroundColor(tokens.textSecondary)
             }
@@ -345,7 +335,7 @@ struct MoreView: View {
                                             password: password,
                                             session: PlayerManager.sharedURLSession)
                 do {
-                    connectionTest = .loaded("Connected · \(try await client.ping())")
+                    connectionTest = .loaded("Conectado · \(try await client.ping())")
                 } catch {
                     connectionTest = .failed(error)
                 }
@@ -368,10 +358,10 @@ struct MoreView: View {
                 guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                     throw URLError(.badServerResponse)
                 }
-                var message = "Connected"
+                var message = "Conectado"
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let version = json["yt_dlp_version"] as? String {
-                    message = "Connected · yt-dlp \(version)"
+                    message = "Conectado · yt-dlp \(version)"
                 }
                 connectionTest = .loaded(message)
             } catch {
@@ -383,13 +373,13 @@ struct MoreView: View {
     // MARK: - Advanced
 
     private var advancedSection: some View {
-        MoreCard(title: "Advanced", tokens: tokens) {
+        MoreCard(title: "Avanzado", tokens: tokens) {
             VStack(spacing: 0) {
                 Button {
                     Haptics.warning()
                     showClearCacheAlert = true
                 } label: {
-                    row(icon: "trash.slash", iconColor: .orange, title: "Clear Image / Data Cache", isButton: true)
+                    row(icon: "trash.slash", iconColor: .orange, title: "Borrar caché de imágenes y datos", isButton: true)
                 }
                 .buttonStyle(.plain)
 
@@ -399,7 +389,7 @@ struct MoreView: View {
                     Haptics.warning()
                     showClearFavoritesAlert = true
                 } label: {
-                    row(icon: "heart.slash", iconColor: .red, title: "Clear All Favorites", isButton: true)
+                    row(icon: "heart.slash", iconColor: .red, title: "Borrar todos los favoritos", isButton: true)
                 }
                 .buttonStyle(.plain)
 
@@ -409,7 +399,7 @@ struct MoreView: View {
                     Haptics.warning()
                     showDeletePlaylistsAlert = true
                 } label: {
-                    row(icon: "trash", iconColor: .red, title: "Delete All Playlists", isButton: true)
+                    row(icon: "trash", iconColor: .red, title: "Eliminar todas las listas", isButton: true)
                 }
                 .buttonStyle(.plain)
 
@@ -419,7 +409,7 @@ struct MoreView: View {
                     Haptics.warning()
                     showClearListeningHistoryAlert = true
                 } label: {
-                    row(icon: "clock.arrow.circlepath", iconColor: .orange, title: "Clear Listening History", isButton: true)
+                    row(icon: "clock.arrow.circlepath", iconColor: .orange, title: "Borrar historial de escucha", isButton: true)
                 }
                 .buttonStyle(.plain)
             }
@@ -434,12 +424,12 @@ struct MoreView: View {
                 HStack(spacing: DS.Spacing.md) {
                     iconBadge(systemName: "moon.zzz", color: tokens.accent)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Sleep Timer")
+                        Text("Temporizador de apagado")
                             .font(DS.Typography.body)
                             .foregroundColor(tokens.textPrimary)
                         if let end = playerManager.sleepTimerEndDate {
                             TimelineView(.periodic(from: .now, by: 1)) { context in
-                                Text("Pausing in \(countdownString(until: end, now: context.date))")
+                                Text("Pausa en \(countdownString(until: end, now: context.date))")
                                     .font(DS.Typography.caption)
                                     .foregroundColor(tokens.accent)
                             }
@@ -448,10 +438,10 @@ struct MoreView: View {
                     Spacer()
                     Picker("", selection: $settingsManager.sleepTimer) {
                         ForEach(SleepTimerDuration.allCases, id: \.self) { duration in
-                            Text(duration.rawValue).tag(duration)
+                            Text(duration.displayName).tag(duration)
                         }
                     }
-                    .tint(tokens.accent)
+                    .tint(tokens.highlightColor)
                     .onChange(of: settingsManager.sleepTimer) { newValue in
                         Haptics.selection()
                         settingsManager.save()
@@ -465,7 +455,7 @@ struct MoreView: View {
 
                 HStack(spacing: DS.Spacing.md) {
                     iconBadge(systemName: "moon.circle", color: tokens.accent)
-                    Text("Dark Mode")
+                    Text("Modo oscuro")
                         .font(DS.Typography.body)
                         .foregroundColor(tokens.textPrimary)
                     Spacer()
@@ -476,7 +466,7 @@ struct MoreView: View {
                             themeManager.toggleDarkMode()
                         }
                     ))
-                    .tint(tokens.accent)
+                    .tint(tokens.highlightColor)
                 }
                 .padding(.horizontal, DS.Spacing.md)
                 .padding(.vertical, DS.Spacing.md)
@@ -488,7 +478,7 @@ struct MoreView: View {
                 } label: {
                     HStack(spacing: DS.Spacing.md) {
                         iconBadge(systemName: "paintpalette", color: tokens.accent)
-                        Text("Choose Theme")
+                        Text("Elegir tema")
                             .font(DS.Typography.body)
                             .foregroundColor(tokens.textPrimary)
                         Spacer()
@@ -513,6 +503,8 @@ struct MoreView: View {
             tokens.background.ignoresSafeArea()
 
             ScrollView {
+                customThemeSection
+                    .padding([.horizontal, .top], DS.Spacing.lg)
                 LazyVGrid(
                     columns: Array(repeating: GridItem(.flexible(), spacing: DS.Spacing.md), count: 2),
                     spacing: DS.Spacing.md
@@ -524,8 +516,47 @@ struct MoreView: View {
                 .padding(DS.Spacing.lg)
             }
         }
-        .navigationTitle("Themes")
+        .navigationTitle("Temas")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    /// Editable theme: accent, gradient end and dark background colours.
+    private var customThemeSection: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.md) {
+            Text("Personalizar")
+                .font(DS.Typography.titleMedium)
+                .foregroundColor(tokens.highlightColor)
+            ColorPicker("Color de acento", selection: Binding(
+                get: { themeManager.theme.accentColor },
+                set: { themeManager.setCustomAccent($0) }
+            ), supportsOpacity: false)
+            ColorPicker("Final del degradado", selection: Binding(
+                get: { themeManager.theme.gradientEnd },
+                set: { themeManager.setCustomAccent($0, end: true) }
+            ), supportsOpacity: false)
+            ColorPicker("Fondo (modo oscuro)", selection: Binding(
+                get: { themeManager.darkBackground.color },
+                set: { themeManager.setDarkBackground($0) }
+            ), supportsOpacity: false)
+            Capsule()
+                .fill(tokens.accentGradient)
+                .frame(height: 8)
+                .accessibilityHidden(true)
+            Text("El fondo se oscurece si hace falta para que el texto se lea bien. En modo claro se usa el fondo claro.")
+                .font(DS.Typography.caption)
+                .foregroundColor(tokens.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Button("Restablecer Sound Wave") {
+                Haptics.light()
+                themeManager.resetCustomTheme()
+            }
+            .font(DS.Typography.bodyEm)
+            .foregroundColor(tokens.highlightColor)
+        }
+        .font(DS.Typography.body)
+        .foregroundColor(tokens.textPrimary)
+        .padding(DS.Spacing.lg)
+        .background(RoundedRectangle(cornerRadius: DS.Radius.lg, style: .continuous).fill(tokens.cardSurface))
     }
 
     private func themeCard(_ theme: AppTheme) -> some View {
@@ -539,7 +570,8 @@ struct MoreView: View {
                     RoundedRectangle(cornerRadius: DS.Radius.lg, style: .continuous)
                         .fill(
                             LinearGradient(
-                                colors: [theme.accentColor, theme.accentColor.opacity(0.5)],
+                                colors: [theme.accentColor, theme.gradientEnd == theme.accentColor
+                                         ? theme.accentColor.opacity(0.5) : theme.gradientEnd],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -573,10 +605,10 @@ struct MoreView: View {
 
     private var versionFooter: some View {
         VStack(spacing: 4) {
-            Text("Aria v\(appVersion)")
+            Text("Ailen v\(appVersion)")
                 .font(DS.Typography.caption)
                 .foregroundColor(tokens.textSecondary)
-            Text("Made with ♥")
+            Text("Hecho con ♥")
                 .font(DS.Typography.micro)
                 .foregroundColor(tokens.textSecondary.opacity(0.7))
         }
@@ -640,14 +672,7 @@ private struct MoreCard<Content: View>: View {
             SectionLabel(title: title, tokens: tokens)
                 .padding(.horizontal, DS.Spacing.sm)
             content()
-                .background(
-                    RoundedRectangle(cornerRadius: DS.Radius.lg, style: .continuous)
-                        .fill(tokens.cardSurface)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: DS.Radius.lg, style: .continuous)
-                        .stroke(tokens.hairline, lineWidth: 0.5)
-                )
+                .glassSurface(in: RoundedRectangle(cornerRadius: DS.Radius.lg, style: .continuous))
         }
     }
 }

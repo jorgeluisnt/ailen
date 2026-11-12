@@ -43,14 +43,14 @@ struct SmartPlaylistEditorView: View {
                 .scrollDismissesKeyboard(.interactively)
             }
             .navigationTitle(smartPlaylistsManager.playlists.contains { $0.id == working.id }
-                             ? "Edit Smart Playlist" : "New Smart Playlist")
+                             ? "Editar lista inteligente" : "Nueva lista inteligente")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancelar") { dismiss() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Save") {
+                    Button("Guardar") {
                         Haptics.success()
                         smartPlaylistsManager.upsert(working)
                         dismiss()
@@ -71,7 +71,7 @@ struct SmartPlaylistEditorView: View {
 
     private var nameCard: some View {
         card {
-            TextField("Name (e.g. “Fresh FLACs”)", text: $working.name)
+            TextField("Nombre (p. ej., “FLAC nuevos”)", text: $working.name)
                 .font(DS.Typography.body)
                 .foregroundColor(tokens.textPrimary)
                 .padding(DS.Spacing.md)
@@ -79,7 +79,7 @@ struct SmartPlaylistEditorView: View {
     }
 
     private var sourcesCard: some View {
-        card(title: "Include") {
+        card(title: "Incluir") {
             VStack(spacing: 0) {
                 ForEach(Array(SmartSource.allCases.enumerated()), id: \.element) { index, source in
                     Toggle(isOn: sourceBinding(source)) {
@@ -99,17 +99,17 @@ struct SmartPlaylistEditorView: View {
     }
 
     private var filtersCard: some View {
-        card(title: "Only keep tracks where…") {
+        card(title: "Solo canciones que cumplan…") {
             VStack(spacing: 0) {
-                filterField("Title contains", text: $working.rules.titleContains)
+                filterField("El título contiene", text: $working.rules.titleContains)
                 Divider().background(tokens.hairline).padding(.leading, DS.Spacing.md)
-                filterField("Artist contains", text: $working.rules.artistContains)
+                filterField("El artista contiene", text: $working.rules.artistContains)
                 Divider().background(tokens.hairline).padding(.leading, DS.Spacing.md)
-                filterField("Album contains", text: $working.rules.albumContains)
+                filterField("El álbum contiene", text: $working.rules.albumContains)
                 Divider().background(tokens.hairline).padding(.leading, DS.Spacing.md)
 
                 Toggle(isOn: $working.rules.losslessOnly) {
-                    labelled("Lossless only", detail: "FLAC · ALAC · WAV · AIFF")
+                    labelled("Solo sin pérdida", detail: "FLAC · ALAC · WAV · AIFF")
                 }
                 .tint(tokens.accent)
                 .padding(.horizontal, DS.Spacing.md)
@@ -117,54 +117,54 @@ struct SmartPlaylistEditorView: View {
                 Divider().background(tokens.hairline).padding(.leading, DS.Spacing.md)
 
                 Toggle(isOn: $working.rules.favoritesOnly) {
-                    labelled("Favorites only", detail: nil)
+                    labelled("Solo favoritos", detail: nil)
                 }
                 .tint(tokens.accent)
                 .padding(.horizontal, DS.Spacing.md)
                 .padding(.vertical, DS.Spacing.sm)
                 Divider().background(tokens.hairline).padding(.leading, DS.Spacing.md)
 
-                menuRow("Played", selection: working.rules.recency.label) {
+                menuRow("Reproducción", selection: working.rules.recency.label) {
                     ForEach(SmartRecency.allCases, id: \.self) { r in
                         Button(r.label) { working.rules.recency = r }
                     }
                 }
                 Divider().background(tokens.hairline).padding(.leading, DS.Spacing.md)
 
-                menuRow("Added", selection: addedLabel) {
-                    Button("Any time") { working.rules.addedWithinDays = nil }
-                    Button("Last 7 days") { working.rules.addedWithinDays = 7 }
-                    Button("Last 30 days") { working.rules.addedWithinDays = 30 }
-                    Button("Last 90 days") { working.rules.addedWithinDays = 90 }
+                menuRow("Añadida", selection: addedLabel) {
+                    Button("Cuando sea") { working.rules.addedWithinDays = nil }
+                    Button("Últimos 7 días") { working.rules.addedWithinDays = 7 }
+                    Button("Últimos 30 días") { working.rules.addedWithinDays = 30 }
+                    Button("Últimos 90 días") { working.rules.addedWithinDays = 90 }
                 }
                 Divider().background(tokens.hairline).padding(.leading, DS.Spacing.md)
 
-                menuRow("Length", selection: lengthLabel) {
-                    Button("Any") { working.rules.minMinutes = nil; working.rules.maxMinutes = nil }
-                    Button("Under 5 min") { working.rules.minMinutes = nil; working.rules.maxMinutes = 5 }
-                    Button("Over 5 min") { working.rules.minMinutes = 5; working.rules.maxMinutes = nil }
-                    Button("Over 10 min") { working.rules.minMinutes = 10; working.rules.maxMinutes = nil }
-                    Button("Over 20 min") { working.rules.minMinutes = 20; working.rules.maxMinutes = nil }
+                menuRow("Duración", selection: lengthLabel) {
+                    Button("Cualquiera") { working.rules.minMinutes = nil; working.rules.maxMinutes = nil }
+                    Button("Menos de 5 min") { working.rules.minMinutes = nil; working.rules.maxMinutes = 5 }
+                    Button("Más de 5 min") { working.rules.minMinutes = 5; working.rules.maxMinutes = nil }
+                    Button("Más de 10 min") { working.rules.minMinutes = 10; working.rules.maxMinutes = nil }
+                    Button("Más de 20 min") { working.rules.minMinutes = 20; working.rules.maxMinutes = nil }
                 }
             }
         }
     }
 
     private var orderCard: some View {
-        card(title: "Order") {
+        card(title: "Orden") {
             VStack(spacing: 0) {
-                menuRow("Sort", selection: working.sort.label) {
+                menuRow("Ordenar", selection: working.sort.label) {
                     ForEach(SmartSort.allCases, id: \.self) { s in
                         Button(s.label) { working.sort = s }
                     }
                 }
                 Divider().background(tokens.hairline).padding(.leading, DS.Spacing.md)
-                menuRow("Limit", selection: working.limit.map { "\($0) tracks" } ?? "No limit") {
-                    Button("No limit") { working.limit = nil }
-                    Button("10 tracks") { working.limit = 10 }
-                    Button("25 tracks") { working.limit = 25 }
-                    Button("50 tracks") { working.limit = 50 }
-                    Button("100 tracks") { working.limit = 100 }
+                menuRow("Límite", selection: working.limit.map { "\($0) canciones" } ?? "Sin límite") {
+                    Button("Sin límite") { working.limit = nil }
+                    Button("10 canciones") { working.limit = 10 }
+                    Button("25 canciones") { working.limit = 25 }
+                    Button("50 canciones") { working.limit = 50 }
+                    Button("100 canciones") { working.limit = 100 }
                 }
             }
         }
@@ -182,7 +182,7 @@ struct SmartPlaylistEditorView: View {
             favoriteIDs: Set(favoritesManager.tracks.map(\.id)),
             recentlyPlayedIDs: Set(recentlyPlayedManager.recentlyPlayed.map(\.id))
         ).count
-        return Text("Matches \(count) track\(count == 1 ? "" : "s") right now")
+        return Text("\(count == 1 ? "Coincide" : "Coinciden") \(count) \(count == 1 ? "canción" : "canciones") ahora mismo")
             .font(DS.Typography.caption)
             .foregroundColor(tokens.textSecondary)
             .frame(maxWidth: .infinity)
@@ -201,14 +201,14 @@ struct SmartPlaylistEditorView: View {
     }
 
     private var addedLabel: String {
-        working.rules.addedWithinDays.map { "Last \($0) days" } ?? "Any time"
+        working.rules.addedWithinDays.map { "Últimos \($0) días" } ?? "Cuando sea"
     }
 
     private var lengthLabel: String {
         switch (working.rules.minMinutes, working.rules.maxMinutes) {
-        case (nil, nil): return "Any"
-        case (nil, .some(let max)): return "Under \(Int(max)) min"
-        case (.some(let min), nil): return "Over \(Int(min)) min"
+        case (nil, nil): return "Cualquiera"
+        case (nil, .some(let max)): return "Menos de \(Int(max)) min"
+        case (.some(let min), nil): return "Más de \(Int(min)) min"
         case (.some(let min), .some(let max)): return "\(Int(min))–\(Int(max)) min"
         }
     }

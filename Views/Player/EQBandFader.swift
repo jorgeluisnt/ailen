@@ -43,14 +43,18 @@ struct EQBandFader: View {
 
                 // Accent fill from the 0 dB midline to the current gain
                 Capsule()
-                    .fill(themeManager.theme.accentColor)
+                    .fill(LinearGradient(colors: [themeManager.tokens.accentEnd ?? themeManager.theme.accentColor,
+                                                  themeManager.theme.accentColor],
+                                         startPoint: .bottom, endPoint: .top))
                     .frame(width: trackWidth,
                            height: abs(thumbY - midY))
                     .position(x: centerX, y: (thumbY + midY) / 2)
 
                 // Thumb
+                // Sound Wave thumb: accent disc with a light ring.
                 Circle()
                     .fill(themeManager.theme.accentColor)
+                    .overlay(Circle().stroke(Color.white.opacity(0.85), lineWidth: 2))
                     .frame(width: thumbSize, height: thumbSize)
                     .position(x: centerX, y: thumbY)
             }
@@ -67,7 +71,7 @@ struct EQBandFader: View {
         // adjustable behavior: announce the gain and step it with swipe up/down.
         // (The caller supplies the per-band frequency label.)
         .accessibilityElement()
-        .accessibilityValue(String(format: "%+.1f decibels", gain))
+        .accessibilityValue(String(format: "%+.1f decibelios", gain))
         .accessibilityAdjustableAction { direction in
             switch direction {
             case .increment: onChange((gain + step).clamped(to: range))

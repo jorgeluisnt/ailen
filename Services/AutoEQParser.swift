@@ -17,7 +17,7 @@ enum AutoEQParser {
         var errorDescription: String? {
             switch self {
             case .noFilters:
-                return "No EQ filters found. Export the “ParametricEQ.txt” variant of the AutoEQ profile and try again."
+                return "No se encontraron filtros de EQ. Exporta la variante “ParametricEQ.txt” del perfil AutoEQ e inténtalo de nuevo."
             }
         }
     }

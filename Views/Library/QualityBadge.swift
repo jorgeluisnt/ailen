@@ -25,7 +25,7 @@ struct QualityBadge: View {
                 .background(
                     Capsule().fill(tokens.dividerColor)
                 )
-                .accessibilityLabel("Audio quality \(quality.display)")
+                .accessibilityLabel("Calidad de audio \(quality.display)")
         }
     }
 }

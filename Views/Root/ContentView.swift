@@ -42,12 +42,12 @@ struct ContentView: View {
     /// the Search tab hides entirely. Read from `settingsManager`, not
     /// `BackendConfig`, so the tab appears/disappears in the same pass as the
     /// edit that caused it (see `SettingsManager.isServerConfigured`).
-    private var searchAvailable: Bool { settingsManager.isServerConfigured }
+    private var searchAvailable: Bool { false }
 
-    init(initialTab: AppTab = .favorites) {
+    init(initialTab: AppTab = .library) {
         // A start tab pointing at the (hidden) Search tab falls back to
         // Library when no backend is configured.
-        let tab = (initialTab == .search && !BackendConfig.isConfigured) ? AppTab.library : initialTab
+        let tab = initialTab == .search ? AppTab.library : initialTab
         _selectedTab = State(initialValue: tab)
     }
 
@@ -56,18 +56,24 @@ struct ContentView: View {
             themeManager.background
                 .ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                tabContent
-                    .frame(maxHeight: .infinity)
-
-                if playerManager.currentTrack != nil {
-                    MiniPlayerView {
-                        setFullPlayer(true)
+            // Floating glass chrome over the content (iOS 26 style): lists
+            // scroll underneath the mini player and tab bar.
+            tabContent
+                .frame(maxHeight: .infinity)
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    VStack(spacing: DS.Spacing.sm) {
+                        if playerManager.currentTrack != nil {
+                            MiniPlayerView {
+                                setFullPlayer(true)
+                            }
+                        }
+                        customTabBar
                     }
+                    .padding(.horizontal, DS.Spacing.md)
+                    .padding(.bottom, DS.Spacing.xs)
+                    // iPad: keep the chrome compact instead of edge to edge.
+                    .frame(maxWidth: 600)
                 }
-
-                customTabBar
-            }
 
             if showFullPlayer {
                 FullScreenPlayerView(onDismiss: { setFullPlayer(false) })
@@ -102,7 +108,7 @@ struct ContentView: View {
             let message: String?
             switch error {
             case .streamFailed(let msg): message = msg
-            case .trackMissing: message = "That file is missing — re-import it from the Library tab."
+            case .trackMissing: message = "Falta el archivo. Vuelve a importarlo desde Biblioteca."
             case nil: message = nil
             }
             guard let msg = message else { return }
@@ -136,10 +142,7 @@ struct ContentView: View {
             if newPhase == .background || newPhase == .inactive {
                 flushAllStores()
             } else if newPhase == .active {
-                localLibraryManager.cleanupOrphans()
-                // Library search: probe /api/health for the scope gate and
-                // request a (debounced, min-interval-gated) snapshot sync.
-                librarySearchManager.appDidBecomeActive()
+                localLibraryManager.auditMissingFlags()
             }
         }
         .onReceive(NotificationCenter.default.publisher(
@@ -153,14 +156,6 @@ struct ContentView: View {
             // Connect favorites so the lock-screen Like command works.
             playerManager.configureFavorites(favoritesManager)
             playerManager.configureDownloads(downloadManager)
-            librarySearchManager.configure(
-                favorites: favoritesManager,
-                playlists: playlistsManager,
-                localLibrary: localLibraryManager,
-                recents: recentlyPlayedManager,
-                settings: settingsManager
-            )
-            librarySearchManager.appDidBecomeActive()
             if ProcessInfo.processInfo.arguments.contains("--debug-fake-track")
                 || UserDefaults.standard.bool(forKey: "debug_fake_track") {
                 playerManager.loadDebugFakeTrack()
@@ -220,17 +215,17 @@ struct ContentView: View {
 
     private var customTabBar: some View {
         HStack(spacing: 0) {
-            tabBarButton(tab: .favorites, icon: "heart", label: "Favorites")
-            tabBarButton(tab: .playlists, icon: "music.note.list", label: "Playlists")
-            tabBarButton(tab: .library, icon: "folder", label: "Library")
+            tabBarButton(tab: .favorites, icon: "heart", label: "Favoritos")
+            tabBarButton(tab: .playlists, icon: "music.note.list", label: "Listas")
+            tabBarButton(tab: .library, icon: "folder", label: "Biblioteca")
             if searchAvailable {
-                tabBarButton(tab: .search, icon: "magnifyingglass", label: "Search")
+                tabBarButton(tab: .search, icon: "magnifyingglass", label: "Buscar")
             }
-            tabBarButton(tab: .more, icon: "ellipsis", label: "More")
+            tabBarButton(tab: .more, icon: "ellipsis", label: "Ajustes")
         }
         .padding(.horizontal, DS.Spacing.xs)
         .padding(.vertical, 6)
-        .background(themeManager.surface)
+        .glassSurface(in: Capsule())
     }
 
     private var allowedFillIcons: Set<String> { ["heart"] }
@@ -249,6 +244,10 @@ struct ContentView: View {
                 Text(label)
                     .scaledFont(size: 10, weight: selectedTab == tab ? .semibold : .regular, relativeTo: .caption2)
             }
+            .padding(.vertical, 4)
+            .frame(maxWidth: .infinity)
+            // Selected tab: soft accent pill inside the glass capsule.
+            .background(Capsule().fill(selectedTab == tab ? themeManager.tokens.accentSubtle : .clear))
             // Fixed-height tab bar: scale the label through the standard sizes,
             // but clamp before the accessibility sizes break the bar layout.
             .dynamicTypeSize(...DynamicTypeSize.xxxLarge)

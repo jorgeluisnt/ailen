@@ -15,58 +15,77 @@ struct LibrarySectionView: View {
     let onAddToPlaylist: (LocalTrack) -> Void
     let onDelete: (LocalTrack) -> Void
 
+    // A Section (not a VStack) so the parent LazyVStack builds rows lazily;
+    // a VStack would instantiate every row of the section at once.
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        Section {
+            ForEach(section.tracks) { track in
+                HStack(spacing: 0) {
+                    LibraryTrackRow(
+                        track: track,
+                        isCurrentTrack: isCurrentTrack(track),
+                        isPlaying: isPlaying,
+                        tokens: tokens,
+                        onTap: { onPlay(track) }
+                    )
+                    // Sound Wave "⋯": the same actions as the long press.
+                    Menu { actions(for: track) } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.body.weight(.semibold))
+                            .foregroundColor(tokens.textSecondary)
+                            .frame(width: 40, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .accessibilityLabel("Más opciones para \(track.title)")
+                }
+                .padding(.leading, DS.Spacing.lg)
+                .padding(.trailing, DS.Spacing.xs)
+                .padding(.vertical, 4)
+                .background(isCurrentTrack(track) ? tokens.accentSubtle : Color.clear)
+                .contextMenu { actions(for: track) }
+            }
+        } header: {
             if showHeader && !section.title.isEmpty {
                 Text(section.title)
                     .font(.headline)
                     .foregroundColor(tokens.textPrimary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal)
-                    .padding(.top, 8)
+                    .padding(.top, 16)
+                    .accessibilityAddTraits(.isHeader)
             }
-            ForEach(section.tracks) { track in
-                LibraryTrackRow(
-                    track: track,
-                    isCurrentTrack: isCurrentTrack(track),
-                    isPlaying: isPlaying,
-                    tokens: tokens,
-                    onTap: { onPlay(track) }
-                )
-                .padding(.horizontal)
-                .padding(.vertical, 4)
-                .background(tokens.cardSurface)
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                .contextMenu {
-                    Button {
-                        onPlay(track)
-                    } label: {
-                        Label("Play", systemImage: "play.fill")
-                    }
-                    if !track.isMissing {
-                        Button {
-                            onPlayNext(track)
-                        } label: {
-                            Label("Play Next", systemImage: "text.line.first.and.arrowtriangle.forward")
-                        }
-                        Button {
-                            onAddToQueue(track)
-                        } label: {
-                            Label("Add to Queue", systemImage: "text.badge.plus")
-                        }
-                    }
-                    Button {
-                        onAddToPlaylist(track)
-                    } label: {
-                        Label("Add to Playlist", systemImage: "text.badge.plus")
-                    }
-                    Divider()
-                    Button(role: .destructive) {
-                        onDelete(track)
-                    } label: {
-                        Label("Delete from Library", systemImage: "trash")
-                    }
-                }
+        }
+    }
+
+    @ViewBuilder
+    private func actions(for track: LocalTrack) -> some View {
+        Button {
+            onPlay(track)
+        } label: {
+            Label("Reproducir", systemImage: "play.fill")
+        }
+        if !track.isMissing {
+            Button {
+                onPlayNext(track)
+            } label: {
+                Label("Reproducir a continuación", systemImage: "text.line.first.and.arrowtriangle.forward")
             }
+            Button {
+                onAddToQueue(track)
+            } label: {
+                Label("Añadir a la cola", systemImage: "text.badge.plus")
+            }
+        }
+        Button {
+            onAddToPlaylist(track)
+        } label: {
+            Label("Añadir a una lista", systemImage: "text.badge.plus")
+        }
+        Divider()
+        Button(role: .destructive) {
+            onDelete(track)
+        } label: {
+            Label("Eliminar de la biblioteca", systemImage: "trash")
         }
     }
 }

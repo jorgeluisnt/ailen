@@ -49,19 +49,19 @@ struct PlaylistDetailView: View {
                             renameText = currentPlaylist.name
                             showRenameAlert = true
                         } label: {
-                            Label("Rename", systemImage: "pencil")
+                            Label("Renombrar", systemImage: "pencil")
                         }
                         Button {
                             Haptics.light()
                             exportM3U()
                         } label: {
-                            Label("Export as M3U", systemImage: "square.and.arrow.up")
+                            Label("Exportar como M3U", systemImage: "square.and.arrow.up")
                         }
                         .disabled(currentPlaylist.tracks.isEmpty)
                         Button(role: .destructive) {
                             showDeleteAlert = true
                         } label: {
-                            Label("Delete Playlist", systemImage: "trash")
+                            Label("Eliminar lista", systemImage: "trash")
                         }
                     } label: {
                         Image(systemName: "ellipsis.circle")
@@ -70,25 +70,25 @@ struct PlaylistDetailView: View {
                     }
                 }
             }
-            .alert("Rename Playlist", isPresented: $showRenameAlert) {
-                TextField("Name", text: $renameText)
-                Button("Cancel", role: .cancel) {}
-                Button("Save") {
+            .alert("Renombrar lista", isPresented: $showRenameAlert) {
+                TextField("Nombre", text: $renameText)
+                Button("Cancelar", role: .cancel) {}
+                Button("Guardar") {
                     let trimmed = renameText.trimmingCharacters(in: .whitespaces)
                     guard !trimmed.isEmpty else { return }
                     Haptics.success()
                     playlistsManager.rename(currentPlaylist, to: trimmed)
                 }
             }
-            .alert("Delete Playlist", isPresented: $showDeleteAlert) {
-                Button("Cancel", role: .cancel) {}
-                Button("Delete", role: .destructive) {
+            .alert("Eliminar lista", isPresented: $showDeleteAlert) {
+                Button("Cancelar", role: .cancel) {}
+                Button("Eliminar", role: .destructive) {
                     Haptics.warning()
                     playlistsManager.delete(currentPlaylist)
                     dismiss()
                 }
             } message: {
-                Text("This will permanently delete \"\(currentPlaylist.name)\". This action cannot be undone.")
+                Text("Se eliminará \"\(currentPlaylist.name)\" de forma permanente. Esta acción no se puede deshacer.")
             }
             .fileExporter(isPresented: $showExporter,
                           document: exportDocument,
@@ -143,7 +143,7 @@ struct PlaylistDetailView: View {
                     .font(DS.Typography.titleLarge)
                     .foregroundColor(tokens.textPrimary)
                     .multilineTextAlignment(.center)
-                Text("\(currentPlaylist.tracks.count) track\(currentPlaylist.tracks.count == 1 ? "" : "s")")
+                Text("\(currentPlaylist.tracks.count) \(currentPlaylist.tracks.count == 1 ? "canción" : "canciones")")
                     .font(DS.Typography.caption)
                     .foregroundColor(tokens.textSecondary)
             }
@@ -154,7 +154,7 @@ struct PlaylistDetailView: View {
 
     private var actionRow: some View {
         HStack(spacing: DS.Spacing.md) {
-            actionPill(systemImage: "play.fill", label: "Play", filled: true) {
+            actionPill(systemImage: "play.fill", label: "Reproducir", filled: true) {
                 Haptics.medium()
                 let tracks = currentPlaylist.tracks
                 guard !tracks.isEmpty else { return }
@@ -163,7 +163,7 @@ struct PlaylistDetailView: View {
                 playlistsManager.markPlayed(currentPlaylist)
             }
 
-            actionPill(systemImage: "shuffle", label: "Shuffle", filled: false) {
+            actionPill(systemImage: "shuffle", label: "Aleatorio", filled: false) {
                 Haptics.medium()
                 let tracks = currentPlaylist.tracks.shuffled()
                 guard !tracks.isEmpty else { return }
@@ -215,10 +215,10 @@ struct PlaylistDetailView: View {
             }
             .softShadow()
             VStack(spacing: DS.Spacing.sm) {
-                Text("No Tracks")
+                Text("No hay canciones")
                     .font(DS.Typography.titleLarge)
                     .foregroundColor(tokens.textPrimary)
-                Text("Add songs to this playlist from search or now playing.")
+                Text("Añade canciones a esta lista desde la Biblioteca o desde Ahora suena.")
                     .font(DS.Typography.body)
                     .foregroundColor(tokens.textSecondary)
                     .multilineTextAlignment(.center)

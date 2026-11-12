@@ -29,6 +29,13 @@ struct PlaylistsView: View {
     enum PlaylistTab: String, CaseIterable {
         case recentlyAdded = "Recently Added"
         case recentlyPlayed = "Recently Played"
+
+        var displayName: String {
+            switch self {
+            case .recentlyAdded: return "Añadidas recientemente"
+            case .recentlyPlayed: return "Reproducidas recientemente"
+            }
+        }
     }
 
     var body: some View {
@@ -59,10 +66,10 @@ struct PlaylistsView: View {
                 .padding(.bottom, 100)
             }
         }
-        .alert("New Playlist", isPresented: $showNewPlaylistAlert) {
-            TextField("Playlist name", text: $newPlaylistName)
-            Button("Cancel", role: .cancel) { newPlaylistName = "" }
-            Button("Create") {
+        .alert("Nueva lista", isPresented: $showNewPlaylistAlert) {
+            TextField("Nombre de la lista", text: $newPlaylistName)
+            Button("Cancelar", role: .cancel) { newPlaylistName = "" }
+            Button("Crear") {
                 let trimmed = newPlaylistName.trimmingCharacters(in: .whitespaces)
                 guard !trimmed.isEmpty else { return }
                 Haptics.success()
@@ -79,9 +86,9 @@ struct PlaylistsView: View {
         .sheet(item: $selectedSmart) { playlist in
             SmartPlaylistDetailView(playlistID: playlist.id)
         }
-        .alert("Delete Smart Playlist", isPresented: $showSmartDeleteAlert) {
-            Button("Cancel", role: .cancel) { smartDeleteTarget = nil }
-            Button("Delete", role: .destructive) {
+        .alert("Eliminar lista inteligente", isPresented: $showSmartDeleteAlert) {
+            Button("Cancelar", role: .cancel) { smartDeleteTarget = nil }
+            Button("Eliminar", role: .destructive) {
                 if let target = smartDeleteTarget {
                     Haptics.warning()
                     smartPlaylistsManager.delete(target)
@@ -89,12 +96,12 @@ struct PlaylistsView: View {
                 smartDeleteTarget = nil
             }
         } message: {
-            Text("This deletes the rules for “\(smartDeleteTarget?.name ?? "")”. Your tracks are not affected.")
+            Text("Se eliminarán las reglas de “\(smartDeleteTarget?.name ?? "")”. Tus canciones no se verán afectadas.")
         }
-        .alert("Rename Playlist", isPresented: $showRenameAlert) {
-            TextField("Playlist name", text: $renameText)
-            Button("Cancel", role: .cancel) { renameTarget = nil }
-            Button("Rename") {
+        .alert("Renombrar lista", isPresented: $showRenameAlert) {
+            TextField("Nombre de la lista", text: $renameText)
+            Button("Cancelar", role: .cancel) { renameTarget = nil }
+            Button("Renombrar") {
                 let trimmed = renameText.trimmingCharacters(in: .whitespaces)
                 if let target = renameTarget, !trimmed.isEmpty {
                     Haptics.success()
@@ -103,9 +110,9 @@ struct PlaylistsView: View {
                 renameTarget = nil
             }
         }
-        .alert("Delete Playlist", isPresented: $showDeleteAlert) {
-            Button("Cancel", role: .cancel) { deleteTarget = nil }
-            Button("Delete", role: .destructive) {
+        .alert("Eliminar lista", isPresented: $showDeleteAlert) {
+            Button("Cancelar", role: .cancel) { deleteTarget = nil }
+            Button("Eliminar", role: .destructive) {
                 if let target = deleteTarget {
                     Haptics.warning()
                     playlistsManager.delete(target)
@@ -113,7 +120,7 @@ struct PlaylistsView: View {
                 deleteTarget = nil
             }
         } message: {
-            Text("This permanently deletes “\(deleteTarget?.name ?? "")”. This action cannot be undone.")
+            Text("Se eliminará “\(deleteTarget?.name ?? "")” de forma permanente. Esta acción no se puede deshacer.")
         }
     }
 
@@ -122,10 +129,10 @@ struct PlaylistsView: View {
     private var headerBar: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Playlists")
+                Text("Listas")
                     .font(DS.Typography.display)
                     .foregroundColor(tokens.textPrimary)
-                Text("\(playlistsManager.playlists.count) created")
+                Text("\(playlistsManager.playlists.count) \(playlistsManager.playlists.count == 1 ? "creada" : "creadas")")
                     .font(DS.Typography.caption)
                     .foregroundColor(tokens.textSecondary)
             }
@@ -137,7 +144,7 @@ struct PlaylistsView: View {
                         playlistsManager.sortOrder = order
                     } label: {
                         HStack {
-                            Text(order.rawValue)
+                            Text(order.displayName)
                             if playlistsManager.sortOrder == order {
                                 Image(systemName: "checkmark")
                             }
@@ -153,7 +160,7 @@ struct PlaylistsView: View {
                         Circle().fill(tokens.surface)
                     )
             }
-            .accessibilityLabel("Sort playlists")
+            .accessibilityLabel("Ordenar listas")
 
             Button {
                 Haptics.light()
@@ -167,7 +174,7 @@ struct PlaylistsView: View {
                         Circle().fill(tokens.accent)
                     )
             }
-            .accessibilityLabel("New playlist")
+            .accessibilityLabel("Nueva lista")
         }
     }
 
@@ -176,7 +183,7 @@ struct PlaylistsView: View {
     private var recentPlaylistsSection: some View {
         VStack(alignment: .leading, spacing: DS.Spacing.md) {
             if !playlistsManager.recentlyPlayedPlaylists.isEmpty {
-                SectionLabel(title: "Recently played", tokens: tokens)
+                SectionLabel(title: "Reproducidas recientemente", tokens: tokens)
                     .padding(.horizontal, DS.Spacing.lg)
                     .padding(.top, DS.Spacing.lg)
 
@@ -237,7 +244,7 @@ struct PlaylistsView: View {
                     .lineLimit(1)
                     .frame(width: 130, alignment: .leading)
 
-                Text("\(playlist.tracks.count) track\(playlist.tracks.count == 1 ? "" : "s")")
+                Text("\(playlist.tracks.count) \(playlist.tracks.count == 1 ? "canción" : "canciones")")
                     .font(DS.Typography.caption)
                     .foregroundColor(tokens.textSecondary)
                     .frame(width: 130, alignment: .leading)
@@ -258,7 +265,7 @@ struct PlaylistsView: View {
                     }
                 } label: {
                     VStack(spacing: 6) {
-                        Text(tab.rawValue)
+                        Text(tab.displayName)
                             .font(DS.Typography.bodyEm)
                             .foregroundColor(selectedTab == tab ? tokens.textPrimary : tokens.textSecondary)
                         ZStack {
@@ -298,7 +305,7 @@ struct PlaylistsView: View {
                         .font(.system(size: 28, weight: .light))
                         .foregroundColor(tokens.textSecondary)
                 }
-                Text("No tracks yet")
+                Text("Aún no hay canciones")
                     .font(DS.Typography.body)
                     .foregroundColor(tokens.textSecondary)
             }
@@ -358,7 +365,7 @@ struct PlaylistsView: View {
     /// Rule-based playlists that re-evaluate live.
     private var smartPlaylistsSection: some View {
         VStack(alignment: .leading, spacing: DS.Spacing.sm) {
-            SectionLabel(title: "Smart playlists", tokens: tokens)
+            SectionLabel(title: "Listas inteligentes", tokens: tokens)
                 .padding(.horizontal, DS.Spacing.lg)
 
             VStack(spacing: 0) {
@@ -389,13 +396,13 @@ struct PlaylistsView: View {
                         Button {
                             smartEditorDraft = playlist
                         } label: {
-                            Label("Edit Rules", systemImage: "slider.horizontal.3")
+                            Label("Editar reglas", systemImage: "slider.horizontal.3")
                         }
                         Button(role: .destructive) {
                             smartDeleteTarget = playlist
                             showSmartDeleteAlert = true
                         } label: {
-                            Label("Delete", systemImage: "trash")
+                            Label("Eliminar", systemImage: "trash")
                         }
                     }
                     Divider().background(tokens.hairline).padding(.leading, 56)
@@ -409,7 +416,7 @@ struct PlaylistsView: View {
                         Image(systemName: "plus.circle.fill")
                             .foregroundColor(tokens.accent)
                             .frame(width: 32, height: 32)
-                        Text("New Smart Playlist")
+                        Text("Nueva lista inteligente")
                             .font(DS.Typography.bodyEm)
                             .foregroundColor(tokens.textPrimary)
                         Spacer()
@@ -419,7 +426,7 @@ struct PlaylistsView: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("New smart playlist")
+                .accessibilityLabel("Nueva lista inteligente")
             }
             .background(
                 RoundedRectangle(cornerRadius: DS.Radius.md, style: .continuous)
@@ -431,7 +438,7 @@ struct PlaylistsView: View {
 
     private var yourPlaylistsSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SectionLabel(title: "Your playlists", tokens: tokens)
+            SectionLabel(title: "Tus listas", tokens: tokens)
                 .padding(.horizontal, DS.Spacing.lg)
                 .padding(.bottom, DS.Spacing.sm)
 
@@ -445,14 +452,14 @@ struct PlaylistsView: View {
                             .font(.system(size: 30, weight: .light))
                             .foregroundColor(tokens.textSecondary)
                     }
-                    Text("Create your first playlist")
+                    Text("Crea tu primera lista")
                         .font(DS.Typography.body)
                         .foregroundColor(tokens.textSecondary)
                     Button {
                         Haptics.light()
                         showNewPlaylistAlert = true
                     } label: {
-                        Text("Create Playlist")
+                        Text("Crear lista")
                             .font(DS.Typography.bodyEm)
                             .foregroundColor(.white)
                             .padding(.horizontal, DS.Spacing.lg)
@@ -509,7 +516,7 @@ struct PlaylistsView: View {
                     Text(playlist.name)
                         .font(DS.Typography.bodyEm)
                         .foregroundColor(tokens.textPrimary)
-                    Text("\(playlist.tracks.count) track\(playlist.tracks.count == 1 ? "" : "s")")
+                    Text("\(playlist.tracks.count) \(playlist.tracks.count == 1 ? "canción" : "canciones")")
                         .font(DS.Typography.caption)
                         .foregroundColor(tokens.textSecondary)
                 }
@@ -534,21 +541,21 @@ struct PlaylistsView: View {
                 recentlyPlayedManager.trackPlayed(tracks[0])
                 playlistsManager.markPlayed(playlist)
             } label: {
-                Label("Play", systemImage: "play.fill")
+                Label("Reproducir", systemImage: "play.fill")
             }
             Button {
                 renameTarget = playlist
                 renameText = playlist.name
                 showRenameAlert = true
             } label: {
-                Label("Rename", systemImage: "pencil")
+                Label("Renombrar", systemImage: "pencil")
             }
             Divider()
             Button(role: .destructive) {
                 deleteTarget = playlist
                 showDeleteAlert = true
             } label: {
-                Label("Delete", systemImage: "trash")
+                Label("Eliminar", systemImage: "trash")
             }
         }
     }

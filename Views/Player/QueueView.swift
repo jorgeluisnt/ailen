@@ -28,11 +28,11 @@ struct QueueView: View {
                     }
                 }
             }
-            .navigationTitle("Up Next")
+            .navigationTitle("A continuación")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
+                    Button("Listo") { dismiss() }
                         .foregroundColor(tokens.accent)
                 }
                 if !playerManager.queue.isEmpty {
@@ -44,13 +44,13 @@ struct QueueView: View {
                                 newPlaylistName = ""
                                 showSaveDialog = true
                             } label: {
-                                Label("Save as Playlist", systemImage: "square.and.arrow.down")
+                                Label("Guardar como lista", systemImage: "square.and.arrow.down")
                             }
                             Button(role: .destructive) {
                                 Haptics.warning()
                                 playerManager.clearQueue()
                             } label: {
-                                Label("Clear Queue", systemImage: "trash")
+                                Label("Vaciar cola", systemImage: "trash")
                             }
                         } label: {
                             Image(systemName: "ellipsis.circle")
@@ -59,12 +59,12 @@ struct QueueView: View {
                     }
                 }
             }
-            .alert("Save as Playlist", isPresented: $showSaveDialog) {
-                TextField("Playlist name", text: $newPlaylistName)
-                Button("Cancel", role: .cancel) {}
-                Button("Save") { saveQueueAsPlaylist() }
+            .alert("Guardar como lista", isPresented: $showSaveDialog) {
+                TextField("Nombre de la lista", text: $newPlaylistName)
+                Button("Cancelar", role: .cancel) {}
+                Button("Guardar") { saveQueueAsPlaylist() }
             } message: {
-                Text("Saves the current track and everything up next.")
+                Text("Guarda la canción actual y todo lo que sigue a continuación.")
             }
         }
     }
@@ -74,7 +74,7 @@ struct QueueView: View {
         let tracks = ([playerManager.currentTrack].compactMap { $0 }) + playerManager.queue
         guard !tracks.isEmpty else { return }
         let trimmed = newPlaylistName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let name = trimmed.isEmpty ? "New Playlist" : trimmed
+        let name = trimmed.isEmpty ? "Nueva lista" : trimmed
         playlistsManager.create(name: name, tracks: tracks)
         Haptics.success()
     }
@@ -98,10 +98,10 @@ struct QueueView: View {
             }
             .softShadow()
             VStack(spacing: DS.Spacing.sm) {
-                Text("Queue is Empty")
+                Text("La cola está vacía")
                     .font(DS.Typography.titleLarge)
                     .foregroundColor(tokens.textPrimary)
-                Text("Long press on a song to add it to the queue")
+                Text("Mantén pulsada una canción para añadirla a la cola")
                     .font(DS.Typography.body)
                     .foregroundColor(tokens.textSecondary)
                     .multilineTextAlignment(.center)
@@ -113,7 +113,7 @@ struct QueueView: View {
 
     private var trackCount: some View {
         HStack {
-            Text("\(playerManager.queue.count) track\(playerManager.queue.count == 1 ? "" : "s")")
+            Text("\(playerManager.queue.count) \(playerManager.queue.count == 1 ? "canción" : "canciones")")
                 .font(DS.Typography.captionStrong)
                 .foregroundColor(tokens.textSecondary)
             Spacer()

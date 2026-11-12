@@ -15,11 +15,11 @@ enum ImportError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unsupportedFormat(let format):
-            return "\(format.displayName) format is not supported."
+            return "El formato \(format.displayName) no es compatible."
         case .fileNotDownloaded:
-            return "File hasn't finished downloading from iCloud."
+            return "El archivo aún no ha terminado de descargarse de iCloud."
         case .zeroByteFile:
-            return "File is empty (0 bytes)."
+            return "El archivo está vacío (0 bytes)."
         }
     }
 }

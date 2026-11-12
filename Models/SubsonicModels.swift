@@ -38,8 +38,8 @@ struct SubsonicError: Decodable, Equatable {
     var friendlyMessage: String {
         switch code {
         case 40: return "Wrong username or password."
-        case 41: return "This server requires LDAP authentication, which Aria doesn't support."
-        case 30: return "The server's API version is older than Aria requires."
+        case 41: return "This server requires LDAP authentication, which Ailen doesn't support."
+        case 30: return "The server's API version is older than Ailen requires."
         case 50: return "That account isn't allowed to stream from this server."
         case 60: return "The server requires a Subsonic subscription that has lapsed."
         case 70: return "Not found on the server."

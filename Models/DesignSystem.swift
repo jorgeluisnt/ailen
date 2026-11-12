@@ -69,3 +69,18 @@ extension View {
         shadow(color: .black.opacity(0.10), radius: 8, x: 0, y: 2)
     }
 }
+
+// MARK: - Liquid Glass
+
+extension View {
+    /// iOS 26 Liquid Glass in `shape`, optionally tinted and reacting to
+    /// touch. Earlier iOS versions get the classic translucent material.
+    @ViewBuilder
+    func glassSurface<S: Shape>(in shape: S, tint: Color? = nil, interactive: Bool = false) -> some View {
+        if #available(iOS 26.0, *) {
+            self.glassEffect(Glass.regular.tint(tint).interactive(interactive), in: shape)
+        } else {
+            self.background(.ultraThinMaterial, in: shape)
+        }
+    }
+}

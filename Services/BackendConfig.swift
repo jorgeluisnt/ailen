@@ -44,8 +44,8 @@ enum BackendConfig {
         /// which is the single most common setup mistake.
         var urlPlaceholder: String {
             switch self {
-            case .aria: return "Server URL (https://host:port)"
-            case .subsonic: return "Server URL (https://music.example.com)"
+            case .aria: return "URL del servidor (https://host:puerto)"
+            case .subsonic: return "URL del servidor (https://music.example.com)"
             }
         }
     }

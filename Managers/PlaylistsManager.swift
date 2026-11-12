@@ -4,6 +4,13 @@ import Combine
 enum PlaylistSortOrder: String, CaseIterable {
     case alphabetical = "Alphabetical"
     case recentlyPlayed = "Recently Played"
+
+    var displayName: String {
+        switch self {
+        case .alphabetical: return "Alfabético"
+        case .recentlyPlayed: return "Reproducidas recientemente"
+        }
+    }
 }
 
 final class PlaylistsManager: ObservableObject {

@@ -33,7 +33,7 @@ struct AutoEQBrowserView: View {
                 tokens.background.ignoresSafeArea()
                 content
             }
-            .navigationTitle("AutoEQ Profiles")
+            .navigationTitle("Perfiles de AutoEQ")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -44,21 +44,21 @@ struct AutoEQBrowserView: View {
                     } label: {
                         Image(systemName: "folder")
                     }
-                    .accessibilityLabel("Import profile from a file instead")
+                    .accessibilityLabel("Importar un perfil desde un archivo")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancelar") { dismiss() }
                 }
             }
             .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always),
-                        prompt: "Search your headphones")
+                        prompt: "Busca tus auriculares")
         }
         .onAppear { catalog.loadIndexIfNeeded() }
         .alert("AutoEQ", isPresented: .init(
             get: { fetchError != nil },
             set: { if !$0 { fetchError = nil } }
         )) {
-            Button("OK", role: .cancel) { fetchError = nil }
+            Button("Aceptar", role: .cancel) { fetchError = nil }
         } message: {
             Text(fetchError ?? "")
         }
@@ -100,10 +100,10 @@ struct AutoEQBrowserView: View {
             formFactorPicker
             if visible.isEmpty {
                 VStack(spacing: DS.Spacing.sm) {
-                    Text("No matches")
+                    Text("Sin resultados")
                         .font(DS.Typography.titleMedium)
                         .foregroundColor(tokens.textPrimary)
-                    Text("Try fewer words — e.g. just the model number.")
+                    Text("Prueba con menos palabras; por ejemplo, solo el número de modelo.")
                         .font(DS.Typography.caption)
                         .foregroundColor(tokens.textSecondary)
                 }
@@ -140,8 +140,8 @@ struct AutoEQBrowserView: View {
     }
 
     private var formFactorPicker: some View {
-        Picker("Form factor", selection: $formFactor) {
-            Text("All").tag(AutoEQCatalogEntry.FormFactor?.none)
+        Picker("Tipo", selection: $formFactor) {
+            Text("Todos").tag(AutoEQCatalogEntry.FormFactor?.none)
             ForEach([AutoEQCatalogEntry.FormFactor.overEar, .inEar, .earbud], id: \.self) { f in
                 Text(f.label).tag(AutoEQCatalogEntry.FormFactor?.some(f))
             }
@@ -161,7 +161,7 @@ struct AutoEQBrowserView: View {
                         .font(DS.Typography.bodyEm)
                         .foregroundColor(tokens.textPrimary)
                         .lineLimit(1)
-                    Text("measured by \(entry.source)")
+                    Text("medido por \(entry.source)")
                         .font(DS.Typography.caption)
                         .foregroundColor(tokens.textSecondary)
                         .lineLimit(1)
@@ -184,7 +184,7 @@ struct AutoEQBrowserView: View {
     }
 
     private var attribution: some View {
-        Text("Correction profiles from the open-source AutoEq project (jaakkopasanen/AutoEq, MIT), fetched on demand from GitHub.")
+        Text("Perfiles de corrección del proyecto de código abierto AutoEq (jaakkopasanen/AutoEq, MIT), descargados desde GitHub solo cuando los pides.")
             .font(DS.Typography.micro)
             .foregroundColor(tokens.textSecondary)
             .multilineTextAlignment(.center)

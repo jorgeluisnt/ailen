@@ -26,10 +26,10 @@ struct AutoEQCatalogEntry: Codable, Identifiable, Hashable {
 
         var label: String {
             switch self {
-            case .overEar: return "Over-ear"
-            case .inEar: return "In-ear"
-            case .earbud: return "Earbuds"
-            case .other: return "Other"
+            case .overEar: return "Circumaurales"
+            case .inEar: return "Intraurales"
+            case .earbud: return "De botón"
+            case .other: return "Otros"
             }
         }
     }

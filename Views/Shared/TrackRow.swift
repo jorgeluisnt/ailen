@@ -84,10 +84,10 @@ extension View {
         title: String, artist: String,
         isCurrent: Bool, isPlaying: Bool
     ) -> some View {
-        let state = isCurrent ? (isPlaying ? "Now playing. " : "Paused. ") : ""
+        let state = isCurrent ? (isPlaying ? "Reproduciendo. " : "En pausa. ") : ""
         return self
             .accessibilityLabel("\(state)\(title), \(artist)")
-            .accessibilityHint("Plays the track")
+            .accessibilityHint("Reproduce la canción")
     }
 }
 
@@ -99,7 +99,7 @@ struct SectionLabel: View {
     var body: some View {
         Text(title)
             .font(DS.Typography.sectionHeader)
-            .foregroundColor(tokens.textSecondary)
+            .foregroundColor(tokens.highlightColor)  // Sound Wave: magenta section titles
             .textCase(nil)
     }
 }

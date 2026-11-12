@@ -53,10 +53,10 @@ struct FavoritesView: View {
             .softShadow()
 
             VStack(spacing: DS.Spacing.sm) {
-                Text("No Favorites Yet")
+                Text("Aún no hay favoritos")
                     .font(DS.Typography.titleLarge)
                     .foregroundColor(tokens.textPrimary)
-                Text("Tap the heart on any song to add it here.")
+                Text("Toca el corazón de cualquier canción para añadirla aquí.")
                     .font(DS.Typography.body)
                     .foregroundColor(tokens.textSecondary)
                     .multilineTextAlignment(.center)
@@ -79,7 +79,7 @@ struct FavoritesView: View {
             HStack(spacing: DS.Spacing.sm) {
                 Image(systemName: "shuffle")
                     .font(.system(size: 16, weight: .bold))
-                Text("Shuffle Play")
+                Text("Reproducir en aleatorio")
                     .font(DS.Typography.bodyEm)
             }
             .foregroundColor(.white)
@@ -187,22 +187,22 @@ struct FavoritesView: View {
                 Haptics.medium()
                 playerManager.addToQueue(track)
             } label: {
-                Label("Add to Queue", systemImage: "text.badge.plus")
+                Label("Añadir a la cola", systemImage: "text.badge.plus")
             }
             Button {
                 addToPlaylistTrack = track
             } label: {
-                Label("Add to Playlist", systemImage: "music.note.list")
+                Label("Añadir a una lista", systemImage: "music.note.list")
             }
             ShareLink(item: track.shareText, subject: Text(track.title)) {
-                Label("Share", systemImage: "square.and.arrow.up")
+                Label("Compartir", systemImage: "square.and.arrow.up")
             }
             Divider()
             Button(role: .destructive) {
                 Haptics.warning()
                 favoritesManager.remove(track)
             } label: {
-                Label("Remove from Favorites", systemImage: "heart.slash")
+                Label("Quitar de Favoritos", systemImage: "heart.slash")
             }
         } label: {
             Image(systemName: "ellipsis")
@@ -211,7 +211,7 @@ struct FavoritesView: View {
                 .frame(width: 32, height: 32)
                 .contentShape(Rectangle())
         }
-        .accessibilityLabel("More actions for \(track.title)")
+        .accessibilityLabel("Más acciones para \(track.title)")
     }
 
     /// Same pattern as the full-screen player's sheet, but for an explicit
@@ -226,10 +226,10 @@ struct FavoritesView: View {
                         Image(systemName: "music.note.list")
                             .font(.system(size: 40))
                             .foregroundColor(tokens.textSecondary)
-                        Text("No Playlists")
+                        Text("No hay listas")
                             .font(DS.Typography.titleMedium)
                             .foregroundColor(tokens.textPrimary)
-                        Text("Create a playlist first")
+                        Text("Primero crea una lista")
                             .font(DS.Typography.body)
                             .foregroundColor(tokens.textSecondary)
                     }
@@ -245,7 +245,7 @@ struct FavoritesView: View {
                                     Text(playlist.name)
                                         .font(DS.Typography.bodyEm)
                                         .foregroundColor(tokens.textPrimary)
-                                    Text("\(playlist.tracks.count) track\(playlist.tracks.count == 1 ? "" : "s")")
+                                    Text("\(playlist.tracks.count) \(playlist.tracks.count == 1 ? "canción" : "canciones")")
                                         .font(DS.Typography.caption)
                                         .foregroundColor(tokens.textSecondary)
                                 }
@@ -260,11 +260,11 @@ struct FavoritesView: View {
                     .scrollContentBackground(.hidden)
                 }
             }
-            .navigationTitle("Add to Playlist")
+            .navigationTitle("Añadir a una lista")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { addToPlaylistTrack = nil }
+                    Button("Listo") { addToPlaylistTrack = nil }
                 }
             }
         }

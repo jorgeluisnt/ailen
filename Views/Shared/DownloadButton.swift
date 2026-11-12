@@ -28,9 +28,9 @@ struct DownloadButton: View {
             .buttonStyle(.plain)
             .disabled(state == .downloading)
             .accessibilityLabel(accessibilityLabel(state))
-            .confirmationDialog("Remove this download?", isPresented: $confirmRemove, titleVisibility: .visible) {
-                Button("Remove Download", role: .destructive) { downloadManager.remove(track.id) }
-                Button("Cancel", role: .cancel) {}
+            .confirmationDialog("¿Eliminar esta descarga?", isPresented: $confirmRemove, titleVisibility: .visible) {
+                Button("Eliminar descarga", role: .destructive) { downloadManager.remove(track.id) }
+                Button("Cancelar", role: .cancel) {}
             }
         }
     }
@@ -53,9 +53,9 @@ struct DownloadButton: View {
 
     private func accessibilityLabel(_ state: DownloadState) -> String {
         switch state {
-        case .none: return "Download for offline"
-        case .downloading: return "Downloading"
-        case .downloaded: return "Downloaded. Tap to remove."
+        case .none: return "Descargar para escuchar sin conexión"
+        case .downloading: return "Descargando"
+        case .downloaded: return "Descargada. Toca para eliminarla."
         }
     }
 }

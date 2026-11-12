@@ -5,7 +5,7 @@ struct AddToQueueModifier: ViewModifier {
     let track: Track
 
     @State private var showConfirmation = false
-    @State private var confirmationText = "Added to Queue"
+    @State private var confirmationText = "Añadida a la cola"
 
     func body(content: Content) -> some View {
         content
@@ -13,16 +13,16 @@ struct AddToQueueModifier: ViewModifier {
                 Button {
                     Haptics.medium()
                     playerManager.playNext(track)
-                    confirm("Playing Next")
+                    confirm("Se reproducirá a continuación")
                 } label: {
-                    Label("Play Next", systemImage: "text.line.first.and.arrowtriangle.forward")
+                    Label("Reproducir a continuación", systemImage: "text.line.first.and.arrowtriangle.forward")
                 }
                 Button {
                     Haptics.medium()
                     playerManager.addToQueue(track)
-                    confirm("Added to Queue")
+                    confirm("Añadida a la cola")
                 } label: {
-                    Label("Add to Queue", systemImage: "text.badge.plus")
+                    Label("Añadir a la cola", systemImage: "text.badge.plus")
                 }
             }
             .overlay(alignment: .top) {

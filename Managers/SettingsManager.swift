@@ -7,6 +7,17 @@ enum DefaultStartTab: String, CaseIterable {
     case playlists = "Playlists"
     case search = "Search"
     case more = "More"
+
+    /// Presentation text is separate from the raw value stored by older builds.
+    var displayName: String {
+        switch self {
+        case .library: return "Biblioteca"
+        case .favorites: return "Favoritos"
+        case .playlists: return "Listas"
+        case .search: return "Buscar"
+        case .more: return "Ajustes"
+        }
+    }
 }
 
 enum SleepTimerDuration: String, CaseIterable {
@@ -16,6 +27,18 @@ enum SleepTimerDuration: String, CaseIterable {
     case min45 = "45 min"
     case hour1 = "1 hour"
     case hour2 = "2 hours"
+
+    /// Presentation text; the raw value is persisted and must not change.
+    var displayName: String {
+        switch self {
+        case .off:   return "Desactivado"
+        case .min15: return "15 min"
+        case .min30: return "30 min"
+        case .min45: return "45 min"
+        case .hour1: return "1 hora"
+        case .hour2: return "2 horas"
+        }
+    }
 
     /// The duration in seconds, or `nil` for `.off` (no timer).
     var timeInterval: TimeInterval? {
@@ -35,7 +58,11 @@ final class SettingsManager: ObservableObject {
     /// the Import button in front of them. A saved choice still wins (`load()`).
     @Published var defaultStartTab: DefaultStartTab = .library
     @Published var isDarkMode: Bool = true
-    @Published var selectedThemeID: String = "blue"
+    @Published var selectedThemeID: String = "soundwave"
+    /// Editable theme, as hex. Empty = Sound Wave default.
+    @Published var customAccentHex: String = ""
+    @Published var customAccentEndHex: String = ""
+    @Published var customBackgroundHex: String = ""
     @Published var sleepTimer: SleepTimerDuration = .off
     @Published private(set) var searchHistory: [String] = []
     /// Backend server URL / API key overrides (More → Backend). Persisted
@@ -113,7 +140,17 @@ final class SettingsManager: ObservableObject {
         if let raw = defaults.string(forKey: "default_start_tab"),
            let val = DefaultStartTab(rawValue: raw) { defaultStartTab = val }
         isDarkMode = defaults.object(forKey: "dark_mode") as? Bool ?? true
-        selectedThemeID = defaults.string(forKey: "theme_id") ?? "blue"
+        selectedThemeID = defaults.string(forKey: "theme_id") ?? "soundwave"
+        // One-time move to the Sound Wave redesign: "blue" was the old
+        // default, written by every settings save, so it is not a reliable
+        // sign of an explicit choice.
+        if !defaults.bool(forKey: "theme_soundwave_migrated") {
+            if selectedThemeID == "blue" { selectedThemeID = "soundwave" }
+            defaults.set(true, forKey: "theme_soundwave_migrated")
+        }
+        customAccentHex = defaults.string(forKey: "theme_custom_accent") ?? ""
+        customAccentEndHex = defaults.string(forKey: "theme_custom_accent_end") ?? ""
+        customBackgroundHex = defaults.string(forKey: "theme_custom_background") ?? ""
         // The sleep timer is intentionally NOT restored. It's ephemeral —
         // nothing re-arms it at launch, so restoring a stale "30 min"
         // selection would show a duration with no running timer. It always
@@ -133,6 +170,9 @@ final class SettingsManager: ObservableObject {
         defaults.set(defaultStartTab.rawValue, forKey: "default_start_tab")
         defaults.set(isDarkMode, forKey: "dark_mode")
         defaults.set(selectedThemeID, forKey: "theme_id")
+        defaults.set(customAccentHex, forKey: "theme_custom_accent")
+        defaults.set(customAccentEndHex, forKey: "theme_custom_accent_end")
+        defaults.set(customBackgroundHex, forKey: "theme_custom_background")
         // Sleep timer is ephemeral and deliberately not persisted (see load()).
         defaults.set(searchHistory, forKey: "search_history")
         defaults.set(backendURLOverride, forKey: BackendConfig.urlOverrideKey)

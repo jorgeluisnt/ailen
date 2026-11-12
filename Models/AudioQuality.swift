@@ -43,7 +43,7 @@ struct AudioQuality: Equatable, Hashable {
             case .flac: name = "FLAC"
             case .wav: name = "WAV"
             case .alac: name = "ALAC"
-            default: name = "Lossless"
+            default: name = "Sin pérdida"
             }
             return AudioQuality(display: name, category: .lossless)
         }

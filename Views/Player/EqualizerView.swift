@@ -32,6 +32,8 @@ struct EqualizerView: View {
                 themeManager.background.ignoresSafeArea()
 
                 VStack(spacing: 0) {
+                    modeSection
+                    Group {
                     if let preset = eq.parametric {
                         parametricActiveView(preset)
                     } else {
@@ -47,13 +49,17 @@ struct EqualizerView: View {
                         resetButton
                             .padding(.bottom, DS.Spacing.xl)
                     }
+                    }
+                    // Directo keeps the curve; it is just not applied.
+                    .disabled(eq.isDirect)
+                    .opacity(eq.isDirect ? 0.4 : 1)
                 }
             }
-            .navigationTitle("Equalizer")
+            .navigationTitle("Ecualizador")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") { dismiss() }
+                    Button("Listo") { dismiss() }
                         .foregroundColor(themeManager.theme.accentColor)
                 }
             }
@@ -107,41 +113,111 @@ struct EqualizerView: View {
                       allowsMultipleSelection: false) { result in
             handleAutoEQImport(result)
         }
-        .alert("AutoEQ Import", isPresented: .init(
+        .alert("Importar AutoEQ", isPresented: .init(
             get: { importError != nil },
             set: { if !$0 { importError = nil } }
         )) {
-            Button("OK", role: .cancel) { importError = nil }
+            Button("Aceptar", role: .cancel) { importError = nil }
         } message: {
             Text(importError ?? "")
         }
     }
 
+    // MARK: - Directo / Ecualizador
+
+    /// Sound Wave header switch: on = Ecualizador, off = Directo.
+    private var modeSection: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.sm) {
+            Toggle(isOn: Binding(
+                get: { !eq.isDirect },
+                set: { enabled in
+                    let direct = !enabled
+                    // Push a pending drag first so leaving EQ can't drop it.
+                    state.cancelPending()
+                    if !direct, eq.parametric == nil, state.localBands != eq.bands {
+                        playerManager.applyEQPreset(state.localBands)
+                    }
+                    playerManager.setAudioMode(direct: direct)
+                }
+            )) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(eq.isDirect ? "Directo" : "Ecualizador")
+                        .font(DS.Typography.titleMedium)
+                        .foregroundColor(themeManager.textPrimary)
+                    Text(eq.isDirect ? "Sin ecualización" : "Activado")
+                        .font(DS.Typography.caption)
+                        .foregroundColor(themeManager.textSecondary)
+                }
+            }
+            .tint(themeManager.tokens.highlightColor)
+            .accessibilityLabel("Ecualizador")
+            .accessibilityValue(eq.isDirect ? "Desactivado, modo Directo" : "Activado")
+
+            Text(modeExplanation)
+                .font(.caption)
+                .foregroundColor(themeManager.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(DS.Spacing.lg)
+        .glassSurface(in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .padding(.horizontal, DS.Spacing.lg)
+        .padding(.vertical, DS.Spacing.sm)
+    }
+
+    private var modeExplanation: String {
+        if eq.isDirect {
+            return "Directo: sin ecualización. iOS puede seguir procesando el audio (volumen, mezcla, conversión de frecuencia), así que no es salida bit-perfect garantizada."
+        }
+        if let preset = eq.parametric {
+            return "El ecualizador modifica el audio. Preamplificación del perfil: \(Self.dB(preset.preamp))."
+        }
+        let preamp = EQHeadroom.preamp(frequencies: PlayerManager.eqFrequencies, gains: state.localBands)
+        guard preamp < 0 else {
+            return "El ecualizador modifica el audio. Con la curva plana no se aplica procesamiento."
+        }
+        return "El ecualizador modifica el audio. Preamplificación automática \(Self.dB(preamp)) para evitar saturación; el volumen general baja en consecuencia."
+    }
+
+    private static func dB(_ value: Float) -> String {
+        String(format: "%+.1f dB", value)
+    }
+
+    /// Sound Wave: "Preset" title with a dropdown.
     private var presetsBar: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: DS.Spacing.sm) {
+        let current = EQPreset.allCases.first { $0.gains == state.localBands }
+        return HStack {
+            Text("Preset")
+                .font(DS.Typography.titleLarge)
+                .foregroundColor(themeManager.textPrimary)
+            Spacer()
+            Menu {
                 ForEach(EQPreset.allCases) { preset in
-                    let isSelected = state.localBands == preset.gains
                     Button {
                         state.applyPreset(preset.gains)
                     } label: {
-                        Text(preset.rawValue)
-                            .font(DS.Typography.captionStrong)
-                            .padding(.horizontal, DS.Spacing.md)
-                            .padding(.vertical, DS.Spacing.sm)
-                            .background(isSelected
-                                        ? themeManager.theme.accentColor
-                                        : themeManager.surface)
-                            .cornerRadius(DS.Radius.lg)
-                            .foregroundColor(isSelected
-                                             ? .white
-                                             : themeManager.textPrimary)
+                        if preset == current {
+                            Label(preset.displayName, systemImage: "checkmark")
+                        } else {
+                            Text(preset.displayName)
+                        }
                     }
                 }
+            } label: {
+                HStack(spacing: DS.Spacing.sm) {
+                    Text(current?.displayName ?? "Personalizado")
+                        .font(DS.Typography.bodyEm)
+                    Image(systemName: "chevron.down")
+                        .font(.caption.weight(.bold))
+                }
+                .foregroundColor(themeManager.textPrimary)
+                .padding(.horizontal, DS.Spacing.md)
+                .padding(.vertical, DS.Spacing.sm)
+                .glassSurface(in: RoundedRectangle(cornerRadius: 12, style: .continuous), interactive: true)
             }
-            .padding(.horizontal, DS.Spacing.lg)
-            .padding(.vertical, DS.Spacing.md)
+            .accessibilityLabel("Preset: \(current?.displayName ?? "Personalizado")")
         }
+        .padding(.horizontal, DS.Spacing.lg)
+        .padding(.vertical, DS.Spacing.sm)
     }
 
     private var eqGrid: some View {
@@ -161,7 +237,7 @@ struct EqualizerView: View {
                     }
                     .frame(maxHeight: .infinity)
                     .padding(.horizontal, DS.Spacing.xs)
-                    .accessibilityLabel("\(frequencyLabel(i)) hertz band")
+                    .accessibilityLabel("Banda de \(frequencyLabel(i)) hercios")
 
                     Text(frequencyLabel(i))
                         .scaledFont(size: 9, relativeTo: .caption2)
@@ -173,8 +249,11 @@ struct EqualizerView: View {
                 .frame(maxWidth: .infinity)
             }
         }
-        .padding(.horizontal, DS.Spacing.sm)
-        .padding(.top, DS.Spacing.lg)
+        .padding(DS.Spacing.sm)
+        .padding(.vertical, DS.Spacing.sm)
+        .glassSurface(in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .padding(.horizontal, DS.Spacing.lg)
+        .padding(.vertical, DS.Spacing.sm)
     }
 
     /// Thin left-edge dB scale (+12 / 0 / -12) aligned to the fader track
@@ -221,15 +300,12 @@ struct EqualizerView: View {
         return Button {
             state.reset()
         } label: {
-            Text("Reset")
+            Text("Restablecer")
                 .font(DS.Typography.captionStrong)
-                .foregroundColor(themeManager.theme.accentColor)
+                .foregroundColor(themeManager.tokens.highlightColor)
                 .padding(.horizontal, DS.Spacing.lg)
                 .padding(.vertical, DS.Spacing.sm)
-                .overlay(
-                    RoundedRectangle(cornerRadius: DS.Radius.md)
-                        .stroke(themeManager.tokens.hairline, lineWidth: 1)
-                )
+                .glassSurface(in: Capsule(), interactive: true)
         }
         .disabled(isFlat)
         .opacity(isFlat ? 0.4 : 1)
@@ -247,19 +323,17 @@ struct EqualizerView: View {
             HStack(spacing: DS.Spacing.sm) {
                 Image(systemName: "waveform.badge.plus")
                     .foregroundColor(themeManager.theme.accentColor)
-                Text("AutoEQ Profile")
+                Text("Perfil AutoEQ")
                     .font(DS.Typography.captionStrong)
                     .foregroundColor(themeManager.textPrimary)
             }
             .padding(.horizontal, DS.Spacing.lg)
             .padding(.vertical, DS.Spacing.sm)
-            .background(
-                Capsule().fill(themeManager.surface)
-            )
+            .glassSurface(in: Capsule(), interactive: true)
         }
         .buttonStyle(.plain)
         .padding(.vertical, DS.Spacing.sm)
-        .accessibilityLabel("Choose an AutoEQ profile for your headphones")
+        .accessibilityLabel("Elige un perfil AutoEQ para tus auriculares")
     }
 
     /// Replaces the fader grid while an imported parametric curve is active.
@@ -274,11 +348,11 @@ struct EqualizerView: View {
                         .font(DS.Typography.titleMedium)
                         .foregroundColor(themeManager.textPrimary)
                         .multilineTextAlignment(.center)
-                    Text("\(preset.bands.count) filters · preamp \(String(format: "%+.1f", preset.preamp)) dB")
+                    Text("\(preset.bands.count) \(preset.bands.count == 1 ? "filtro" : "filtros") · preamplificación \(String(format: "%+.1f", preset.preamp)) dB")
                         .font(DS.Typography.caption)
                         .foregroundColor(themeManager.textSecondary)
                     if preset.bands.count > EQController.bandCount {
-                        Text("First \(EQController.bandCount) filters applied (hardware limit)")
+                        Text("Se aplican los primeros \(EQController.bandCount) filtros (límite del hardware)")
                             .font(DS.Typography.micro)
                             .foregroundColor(.orange)
                     }
@@ -304,7 +378,7 @@ struct EqualizerView: View {
 
                 autoEQRow
 
-                Text("Parametric curve active — the graphic faders and presets are dormant until you remove it.")
+                Text("Curva paramétrica activa: los deslizadores gráficos y los presets quedan inactivos hasta que la quites.")
                     .font(DS.Typography.micro)
                     .foregroundColor(themeManager.textSecondary)
                     .multilineTextAlignment(.center)
@@ -313,7 +387,7 @@ struct EqualizerView: View {
                     Haptics.warning()
                     playerManager.clearParametricEQ()
                 } label: {
-                    Text("Remove Profile")
+                    Text("Quitar perfil")
                         .font(DS.Typography.captionStrong)
                         .foregroundColor(.red)
                         .padding(.horizontal, DS.Spacing.lg)
@@ -335,7 +409,7 @@ struct EqualizerView: View {
     private func savedProfilesSection(active: ParametricEQPreset?) -> some View {
         if !savedProfiles.profiles.isEmpty {
             VStack(alignment: .leading, spacing: DS.Spacing.sm) {
-                Text("Your headphones")
+                Text("Tus auriculares")
                     .font(DS.Typography.sectionHeader)
                     .foregroundColor(themeManager.textSecondary)
 
@@ -371,12 +445,12 @@ struct EqualizerView: View {
                                     Haptics.warning()
                                     savedProfiles.delete(profile)
                                 } label: {
-                                    Label("Remove from Your Headphones", systemImage: "trash")
+                                    Label("Quitar de Tus auriculares", systemImage: "trash")
                                 }
                             }
                             .accessibilityLabel(isActive
-                                                ? "\(profile.name), active profile"
-                                                : "Switch to \(profile.name)")
+                                                ? "\(profile.name), perfil activo"
+                                                : "Cambiar a \(profile.name)")
                         }
                     }
                 }
@@ -462,6 +536,19 @@ enum EQPreset: String, CaseIterable, Identifiable {
     case classical = "Classical"
 
     var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .flat:        return "Plano"
+        case .bassBoost:   return "Realce de graves"
+        case .trebleBoost: return "Realce de agudos"
+        case .vocal:       return "Voz"
+        case .lounge:      return "Lounge"
+        case .rock:        return "Rock"
+        case .pop:         return "Pop"
+        case .classical:   return "Clásica"
+        }
+    }
 
     var gains: [Float] {
         switch self {

@@ -17,39 +17,27 @@ struct LibraryTrackRow: View {
             HStack(spacing: 12) {
                 artworkView
                     .frame(width: 48, height: 48)
-                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(track.title)
-                        .font(.body)
-                        .foregroundColor(tokens.textPrimary)
+                        .font(.body.weight(.medium))
+                        .foregroundColor(isCurrentTrack ? tokens.highlightColor : tokens.textPrimary)
                         .lineLimit(1)
-                    if let artist = track.artist {
-                        Text(artist)
-                            .font(.caption)
-                            .foregroundColor(tokens.textSecondary)
-                            .lineLimit(1)
-                    }
-                    HStack(spacing: 8) {
-                        Text(formatBytes(track.fileSizeBytes))
-                        if let duration = track.durationSeconds, duration > 0 {
-                            Text("·")
-                            Text(formatDuration(duration))
-                        }
-                        QualityBadge(
-                            AudioQuality.forFile(
-                                fileName: track.fileName,
-                                sizeBytes: track.fileSizeBytes,
-                                durationSeconds: track.durationSeconds
-                            ),
-                            tokens: tokens
-                        )
-                    }
-                    .font(.caption2)
-                    .foregroundColor(tokens.textSecondary)
+                    Text([track.artist, formatBytes(track.fileSizeBytes)].compactMap { $0 }.joined(separator: " · "))
+                        .font(.caption)
+                        .foregroundColor(tokens.textSecondary)
+                        .lineLimit(1)
                 }
 
                 Spacer()
+
+                // Sound Wave: duration on the right.
+                if let duration = track.durationSeconds, duration > 0 {
+                    Text(formatDuration(duration))
+                        .font(.caption.monospacedDigit())
+                        .foregroundColor(tokens.textSecondary)
+                }
 
                 if track.isMissing {
                     Image(systemName: "exclamationmark.triangle.fill")
@@ -66,8 +54,8 @@ struct LibraryTrackRow: View {
         .buttonStyle(.plain)
         .opacity(track.isMissing ? 0.55 : 1.0)
         .trackRowAccessibility(
-            title: track.isMissing ? "\(track.title), missing file" : track.title,
-            artist: track.artist ?? "Unknown artist",
+            title: track.isMissing ? "\(track.title), archivo no encontrado" : track.title,
+            artist: track.artist ?? "Artista desconocido",
             isCurrent: isCurrentTrack, isPlaying: isPlaying
         )
     }
