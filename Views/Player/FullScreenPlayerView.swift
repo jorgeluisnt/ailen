@@ -3,6 +3,7 @@ import SwiftUI
 struct FullScreenPlayerView: View {
     @EnvironmentObject private var playerManager: PlayerManager
     @EnvironmentObject private var themeManager: ThemeManager
+    @EnvironmentObject private var appleMusic: AppleMusicService
     @EnvironmentObject private var nav: NavigationCoordinator
 
     var onDismiss: () -> Void
@@ -17,7 +18,11 @@ struct FullScreenPlayerView: View {
     var body: some View {
         ZStack {
             // Same backdrop as the iPad Now Playing panel.
-            ArtworkBlurBackground(url: playerManager.currentArtworkURL, tokens: themeManager.tokens)
+            if showsAppleMusic {
+                ArtworkBlurBackground(url: nil, image: appleMusic.nowPlayingArtwork, tokens: themeManager.tokens)
+            } else {
+                ArtworkBlurBackground(url: playerManager.currentArtworkURL, tokens: themeManager.tokens)
+            }
 
             VStack(spacing: 0) {
                 HStack {
@@ -70,11 +75,16 @@ struct FullScreenPlayerView: View {
                             .contentShape(Rectangle())
                     }
                     .accessibilityLabel(playerManager.queue.isEmpty ? "Mostrar cola" : "Mostrar cola, \(playerManager.queue.count) a continuación")
+                    // The local queue doesn't apply to Apple Music.
+                    .opacity(showsAppleMusic ? 0 : 1)
+                    .disabled(showsAppleMusic)
                 }
                 .padding(.top, DS.Spacing.sm)
                 .padding(.bottom, 20)
 
-                if let track = playerManager.currentTrack {
+                if showsAppleMusic {
+                    AppleMusicNowPlayingView()
+                } else if let track = playerManager.currentTrack {
                     artworkSection(track: track)
                     trackInfoSection(track: track)
                     PlayerSeekBar()
@@ -112,7 +122,7 @@ struct FullScreenPlayerView: View {
                 .onEnded { value in
                     if value.translation.height > dragThreshold {
                         onDismiss()
-                    } else if value.translation.height < -dragThreshold * 0.6 {
+                    } else if value.translation.height < -dragThreshold * 0.6 && !showsAppleMusic {
                         nav.presentedSheet = .queue  // Sound Wave: swipe up for the queue
                     }
                     withAnimation(.spring(response: 0.3)) {
@@ -126,6 +136,9 @@ struct FullScreenPlayerView: View {
             sourceInfo = await SourceAudioInfo.inspect(url)
         }
     }
+
+    /// Apple Music was started last: show and control it instead.
+    private var showsAppleMusic: Bool { appleMusic.isActiveSource && appleMusic.nowPlaying != nil }
 
     // MARK: - Artwork
 

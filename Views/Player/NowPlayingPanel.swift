@@ -5,6 +5,7 @@ import SwiftUI
 struct NowPlayingPanel: View {
     @EnvironmentObject private var playerManager: PlayerManager
     @EnvironmentObject private var themeManager: ThemeManager
+    @EnvironmentObject private var appleMusic: AppleMusicService
 
     @State private var sourceInfo: SourceAudioInfo?
     @State private var editMode: EditMode = .inactive
@@ -20,7 +21,10 @@ struct NowPlayingPanel: View {
                 .padding(.top, DS.Spacing.lg)
                 .accessibilityAddTraits(.isHeader)
 
-            if let track = playerManager.currentTrack {
+            if showsAppleMusic {
+                AppleMusicNowPlayingView(compact: true)
+                Spacer()
+            } else if let track = playerManager.currentTrack {
                 artwork
                 VStack(spacing: 2) {
                     Text(track.title)
@@ -58,7 +62,13 @@ struct NowPlayingPanel: View {
         .frame(maxHeight: .infinity)
         // Artwork and glass reach the screen edges (under the status bar and
         // home indicator); only the content respects the safe area.
-        .background { ArtworkBlurBackground(url: playerManager.currentArtworkURL, tokens: tokens) }
+        .background {
+            if showsAppleMusic {
+                ArtworkBlurBackground(url: nil, image: appleMusic.nowPlayingArtwork, tokens: tokens)
+            } else {
+                ArtworkBlurBackground(url: playerManager.currentArtworkURL, tokens: tokens)
+            }
+        }
         .environment(\.editMode, $editMode)
         .task(id: playerManager.currentTrack?.id) {
             sourceInfo = nil
@@ -66,6 +76,9 @@ struct NowPlayingPanel: View {
             sourceInfo = await SourceAudioInfo.inspect(url)
         }
     }
+
+    /// Apple Music was started last: show and control it instead.
+    private var showsAppleMusic: Bool { appleMusic.isActiveSource && appleMusic.nowPlaying != nil }
 
     private var artwork: some View {
         Group {

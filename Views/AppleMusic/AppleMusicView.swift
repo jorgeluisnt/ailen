@@ -38,9 +38,6 @@ struct AppleMusicView: View {
             }
             .navigationTitle("Apple Music")
             .navigationBarTitleDisplayMode(.inline)
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                if service.nowPlaying != nil { AppleMusicNowPlayingBar() }
-            }
         }
         .task {
             if service.libraryAuth == .authorized && service.songs.isEmpty { service.loadLibrary() }
@@ -469,33 +466,43 @@ struct AMArtwork: View {
     }
 }
 
-/// "Sonando en Apple Music" bar at the bottom of the section.
+/// Mini player for Apple Music (replaces the local one while Apple Music is
+/// the active source). Tapping it opens the full-screen player.
 struct AppleMusicNowPlayingBar: View {
     @EnvironmentObject private var service: AppleMusicService
     @EnvironmentObject private var themeManager: ThemeManager
+    var onTap: () -> Void = {}
 
     var body: some View {
         let tokens = themeManager.tokens
         HStack(spacing: DS.Spacing.md) {
-            AMArtwork(item: service.nowPlaying?.item, size: 44, corner: 8, tokens: tokens)
-                .frame(width: 44, height: 44)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(service.nowPlaying?.title ?? "")
-                    .font(DS.Typography.bodyEm)
-                    .foregroundColor(tokens.highlightColor)
-                    .lineLimit(1)
-                Text("Apple Music · \(service.nowPlaying?.artist ?? "")")
-                    .font(DS.Typography.caption)
-                    .foregroundColor(tokens.textSecondary)
-                    .lineLimit(1)
+            Button(action: onTap) {
+                HStack(spacing: DS.Spacing.md) {
+                    AMArtwork(item: service.nowPlaying?.item, size: 44, corner: 8, tokens: tokens)
+                        .frame(width: 44, height: 44)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(service.nowPlaying?.title ?? "")
+                            .font(DS.Typography.bodyEm)
+                            .foregroundColor(tokens.highlightColor)
+                            .lineLimit(1)
+                        Text("Apple Music · \(service.nowPlaying?.artist ?? "")")
+                            .font(DS.Typography.caption)
+                            .foregroundColor(tokens.textSecondary)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
             }
-            Spacer()
+            .buttonStyle(.plain)
+            .accessibilityHint("Abre el reproductor a pantalla completa")
             Button { service.togglePlayPause() } label: {
                 Image(systemName: service.isPlaying ? "pause.fill" : "play.fill")
                     .font(.title3)
                     .foregroundColor(tokens.textPrimary)
                     .frame(width: 44, height: 44)
             }
+            .buttonStyle(.plain)
             .accessibilityLabel(service.isPlaying ? "Pausar" : "Reproducir")
             Button { service.skipToNext() } label: {
                 Image(systemName: "forward.fill")
@@ -503,12 +510,13 @@ struct AppleMusicNowPlayingBar: View {
                     .foregroundColor(tokens.textPrimary)
                     .frame(width: 40, height: 44)
             }
+            .buttonStyle(.plain)
             .accessibilityLabel("Siguiente canción")
         }
-        .padding(.horizontal, DS.Spacing.md)
+        .padding(.leading, DS.Spacing.sm)
+        .padding(.trailing, DS.Spacing.xs)
         .padding(.vertical, 6)
-        .glassSurface(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .padding(.horizontal, DS.Spacing.md)
-        .padding(.bottom, DS.Spacing.sm)
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+        .glassSurface(in: RoundedRectangle(cornerRadius: 26, style: .continuous), interactive: true)
     }
 }

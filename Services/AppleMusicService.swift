@@ -37,6 +37,11 @@ final class AppleMusicService: ObservableObject {
     @Published private(set) var isLoading = false
     @Published private(set) var nowPlaying: AMSong?
     @Published private(set) var isPlaying = false
+    /// Apple Music was the last thing started: Now Playing shows and controls
+    /// it. Cleared when local music starts or the section is disabled.
+    @Published private(set) var isActiveSource = false
+    @Published private(set) var shuffleOn = false
+    @Published private(set) var repeatMode: MPMusicRepeatMode = .none
 
     // Catalog (MusicKit service; needs a paid developer account).
     enum CatalogState: Equatable { case idle, searching, results, unavailable(String) }
@@ -105,6 +110,7 @@ final class AppleMusicService: ObservableObject {
         let player = ensurePlayer()
         music?.yieldToOtherPlayer()
         video?.stop()
+        isActiveSource = true
         player.setQueue(with: MPMediaItemCollection(items: items))
         player.shuffleMode = shuffled ? .songs : .off
         if !shuffled { player.nowPlayingItem = items[min(max(index, 0), items.count - 1)] }
@@ -119,9 +125,42 @@ final class AppleMusicService: ObservableObject {
         } else {
             music?.yieldToOtherPlayer()
             video?.stop()
+            isActiveSource = true
             player.play()
         }
     }
+
+    // MARK: - Now Playing controls
+
+    /// Read by the seek bar on a timer (the player doesn't publish it).
+    var currentTime: TimeInterval { player?.currentPlaybackTime ?? 0 }
+    var duration: TimeInterval { nowPlaying?.duration ?? 0 }
+
+    func seek(to time: TimeInterval) { player?.currentPlaybackTime = time }
+
+    func toggleShuffle() {
+        guard let player else { return }
+        player.shuffleMode = player.shuffleMode == .off ? .songs : .off
+        refreshState()
+    }
+
+    func cycleRepeat() {
+        guard let player else { return }
+        switch player.repeatMode {
+        case .none, .default: player.repeatMode = .all
+        case .all: player.repeatMode = .one
+        default: player.repeatMode = .none
+        }
+        refreshState()
+    }
+
+    /// Local music took over: Now Playing goes back to it.
+    func resignActiveSource() {
+        pause()
+        isActiveSource = false
+    }
+
+    var nowPlayingArtwork: UIImage? { Self.artwork(nowPlaying?.item, size: 600) }
 
     func skipToNext() { player?.skipToNextItem() }
     func skipToPrevious() { player?.skipToPreviousItem() }
@@ -141,6 +180,7 @@ final class AppleMusicService: ObservableObject {
         player = nil
         nowPlaying = nil
         isPlaying = false
+        isActiveSource = false
     }
 
     private func ensurePlayer() -> MPMusicPlayerApplicationController {
@@ -162,6 +202,8 @@ final class AppleMusicService: ObservableObject {
         guard let player else { return }
         nowPlaying = player.nowPlayingItem.map(AMSong.init)
         isPlaying = player.playbackState == .playing
+        shuffleOn = player.shuffleMode != .off
+        repeatMode = player.repeatMode
     }
 
     // MARK: - Catalog (MusicKit)
@@ -218,6 +260,7 @@ final class AppleMusicService: ObservableObject {
         let player = ensurePlayer()
         music?.yieldToOtherPlayer()
         video?.stop()
+        isActiveSource = true
         let descriptor = MPMusicPlayerStoreQueueDescriptor(storeIDs: ids)
         descriptor.startItemID = start
         player.shuffleMode = .off

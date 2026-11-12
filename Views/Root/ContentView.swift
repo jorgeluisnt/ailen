@@ -81,7 +81,9 @@ struct ContentView: View {
                 .frame(maxHeight: .infinity)
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     VStack(spacing: DS.Spacing.sm) {
-                        if playerManager.currentTrack != nil {
+                        if appleMusic.isActiveSource && appleMusic.nowPlaying != nil {
+                            AppleMusicNowPlayingBar { setFullPlayer(true) }
+                        } else if playerManager.currentTrack != nil {
                             MiniPlayerView {
                                 setFullPlayer(true)
                             }
@@ -147,7 +149,7 @@ struct ContentView: View {
         .onChange(of: playerManager.isPlaying) { playing in
             // Music started (lock screen, panel, PiP): the video steps aside.
             if playing && videoPlayback.isPlaying { videoPlayback.pause() }
-            if playing { appleMusic.pause() }
+            if playing { appleMusic.resignActiveSource() }
             updateScreen()
         }
         .onChange(of: videoPlayback.isPlaying) { playing in

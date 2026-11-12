@@ -426,12 +426,23 @@ struct QueueEditButton: View {
 /// screen edges; place it as a background.
 struct ArtworkBlurBackground: View {
     let url: URL?
+    var image: UIImage? = nil
     let tokens: DesignTokens
 
     var body: some View {
         ZStack {
             tokens.background
-            if let url {
+            if let image {
+                Color.clear
+                    .overlay {
+                        Image(uiImage: image)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .blur(radius: 60)
+                            .opacity(0.7)
+                    }
+                    .clipped()
+            } else if let url {
                 // Fill inside a clear box and clip it: an aspect-filled square
                 // image is wider than a tall container and would spill out.
                 Color.clear
