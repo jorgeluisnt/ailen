@@ -182,7 +182,7 @@ struct ContentView: View {
             // Turning it off stops Apple Music and leaves its tab.
             if !enabled {
                 appleMusic.shutDown()
-                if selectedTab == .appleMusic { selectedTab = .library }
+                if selectedTab == .appleMusic { selectedTab = .moreHub }
             }
         }
         .onChange(of: settingsManager.screenWhilePlaying) { _ in updateScreen() }
@@ -249,7 +249,7 @@ struct ContentView: View {
                               video: videoPlayback, appleMusic: appleMusic)
         } else {
             spotify.shutDown()
-            if selectedTab == .spotify { selectedTab = .library }
+            if selectedTab == .spotify { selectedTab = .moreHub }
         }
     }
 
@@ -304,6 +304,8 @@ struct ContentView: View {
             LibraryView(library: localLibraryManager)
         case .search:
             SearchView()
+        case .moreHub:
+            MoreHubView { selectedTab = $0 }
         case .videos:
             VideosView()
         case .appleMusic:
@@ -325,14 +327,9 @@ struct ContentView: View {
             if searchAvailable {
                 tabBarButton(tab: .search, icon: "magnifyingglass", label: "Buscar")
             }
-            tabBarButton(tab: .videos, icon: "film", label: "Videos")
-            if settingsManager.appleMusicEnabled {
-                tabBarButton(tab: .appleMusic, icon: "music.note.house", label: "Apple Music")
-            }
-            if settingsManager.spotifyEnabled {
-                tabBarButton(tab: .spotify, icon: "dot.radiowaves.left.and.right", label: "Spotify")
-            }
-            tabBarButton(tab: .more, icon: "ellipsis", label: "Ajustes")
+            // Videos, Apple Music, Spotify and Ajustes live under "Más".
+            tabBarButton(tab: .moreHub, icon: "ellipsis.circle", label: "Más",
+                         selected: selectedTab == .moreHub || AppTab.inMoreHub.contains(selectedTab))
         }
         .padding(.horizontal, DS.Spacing.xs)
         .padding(.vertical, 6)
@@ -341,35 +338,39 @@ struct ContentView: View {
 
     private var allowedFillIcons: Set<String> { ["heart"] }
 
-    private func tabBarButton(tab: AppTab, icon: String, label: String) -> some View {
-        Button {
+    private func tabBarButton(tab: AppTab, icon: String, label: String, selected: Bool? = nil) -> some View {
+        let isSelected = selected ?? (selectedTab == tab)
+        return Button {
             selectedTab = tab
         } label: {
             VStack(spacing: 2) {
                 let selectedIcon = allowedFillIcons.contains(icon)
                     ? "\(icon).fill"
                     : icon
-                Image(systemName: selectedTab == tab ? selectedIcon : icon)
-                    .font(.system(size: 18, weight: selectedTab == tab ? .semibold : .regular))
+                Image(systemName: isSelected ? selectedIcon : icon)
+                    .font(.system(size: 18, weight: isSelected ? .semibold : .regular))
                     .frame(height: 22)
                 Text(label)
-                    .scaledFont(size: 10, weight: selectedTab == tab ? .semibold : .regular, relativeTo: .caption2)
+                    .scaledFont(size: 10, weight: isSelected ? .semibold : .regular, relativeTo: .caption2)
             }
             .padding(.vertical, 4)
             .frame(maxWidth: .infinity)
             // Selected tab: soft accent pill inside the glass capsule.
-            .background(Capsule().fill(selectedTab == tab ? themeManager.tokens.accentSubtle : .clear))
+            .background(Capsule().fill(isSelected ? themeManager.tokens.accentSubtle : .clear))
             // Fixed-height tab bar: scale the label through the standard sizes,
             // but clamp before the accessibility sizes break the bar layout.
             .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-            .foregroundColor(selectedTab == tab ? themeManager.theme.accentColor : themeManager.textSecondary)
+            .foregroundColor(isSelected ? themeManager.theme.accentColor : themeManager.textSecondary)
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.plain)
-        .accessibilityAddTraits(selectedTab == tab ? [.isSelected] : [])
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 }
 
 enum AppTab {
-    case favorites, playlists, library, videos, appleMusic, spotify, search, more
+    case favorites, playlists, library, videos, appleMusic, spotify, search, more, moreHub
+
+    /// Sections reached through the iPhone "Más" tab.
+    static let inMoreHub: Set<AppTab> = [.videos, .appleMusic, .spotify, .more]
 }
