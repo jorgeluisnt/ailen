@@ -32,10 +32,12 @@ final class ScreenAwakeController: ObservableObject {
     private var dimTask: Task<Void, Never>?
     private var touchObserver: TouchObserver?
 
-    /// `playing && foreground` decide; `mode` says how.
-    func update(playing: Bool, foreground: Bool, mode: ScreenWhilePlaying) {
-        let active = playing && foreground && mode != .normal
-        let dims = active && mode == .keepOnDim
+    /// `playing && foreground` decide; `mode` says how. A playing video
+    /// always keeps the screen on at full brightness, whatever the mode.
+    func update(playing: Bool, videoPlaying: Bool = false, foreground: Bool, mode: ScreenWhilePlaying) {
+        let video = videoPlaying && foreground
+        let active = video || (playing && foreground && mode != .normal)
+        let dims = active && !video && mode == .keepOnDim
         guard active != isActive || dims != self.dims else { return }
         isActive = active
         self.dims = dims

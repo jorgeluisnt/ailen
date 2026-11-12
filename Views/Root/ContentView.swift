@@ -206,7 +206,8 @@ struct ContentView: View {
 
     /// Minimized (background/inactive) always lets the screen sleep.
     private func updateScreen() {
-        screenAwake.update(playing: playerManager.isPlaying || videoPlayback.isPlaying,
+        screenAwake.update(playing: playerManager.isPlaying,
+                           videoPlaying: videoPlayback.isPlaying,
                            foreground: scenePhase == .active,
                            mode: settingsManager.screenWhilePlaying)
     }

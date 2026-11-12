@@ -53,6 +53,7 @@ final class VideoPlaybackController: NSObject, ObservableObject {
         try? session.setActive(true)
 
         let player = AVPlayer(url: access.url)
+        player.preventsDisplaySleepDuringVideoPlayback = true  // never sleep mid-video
         let controller = AVPlayerViewController()
         controller.player = player
         controller.allowsPictureInPicturePlayback = true
