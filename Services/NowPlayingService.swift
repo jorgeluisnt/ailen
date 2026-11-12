@@ -122,8 +122,8 @@ final class NowPlayingService {
         // Like / Favorite — toggles the current track in FavoritesManager.
         let like = c.likeCommand
         like.isEnabled = true
-        like.localizedTitle = "Favorite"
-        like.localizedShortTitle = "Favorite"
+        like.localizedTitle = "Favorito"
+        like.localizedShortTitle = "Favorito"
         like.addTarget { [weak self] _ in
             guard let self,
                   let track = self.player?.currentTrack,
@@ -144,6 +144,8 @@ final class NowPlayingService {
                 try s.setCategory(.playback, mode: .default,
                                   policy: .longFormAudio, options: [])
                 try s.setActive(true)
+                // The effective output rate is only meaningful once active.
+                NotificationCenter.default.post(name: .ariaAudioSessionActivated, object: nil)
             } catch {
                 log.error("Audio session activation failed: \(error.localizedDescription, privacy: .public)")
             }

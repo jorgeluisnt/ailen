@@ -4,24 +4,15 @@ import os.log
 
 private let log = Logger(subsystem: "com.aria.music", category: "OutputSampleRate")
 
-/// Matches the audio session's output sample rate to the track being played.
-///
-/// iOS routes every app through a fixed-rate system mixer and honors only
-/// 44.1 kHz and 48 kHz on the output side — `setPreferredSampleRate` is a hint
-/// and higher rates are silently ignored (see
-/// `docs/design/2026-07-25-bit-perfect-dac-assessment.md`). True hi-res
-/// bit-perfect output is therefore impossible on iOS, in any app.
-///
-/// What IS achievable, and what this does: pick the honored rate in the SAME
-/// FAMILY as the source so the OS doesn't resample unnecessarily. A 44.1 kHz
-/// album played while the session sits at 48 kHz gets converted for no reason;
-/// requesting 44.1 removes that step. Multiples of 44.1 (88.2/176.4) map to
-/// 44.1; multiples of 48 (96/192) map to 48.
+/// Legacy source-rate helper. A preferred sample rate is only a request;
+/// the active route's effective rate must be read from `AVAudioSession` after
+/// activation and after route changes. Playback no longer calls `apply`, so
+/// this helper cannot force a USB DAC into a 44.1/48 kHz assumption.
 enum OutputSampleRate {
-    /// The only rates iOS actually honors for output.
+    /// The legacy 44.1/48 kHz candidates, not a list of hardware limits.
     static let supported: [Double] = [44_100, 48_000]
 
-    /// Honored rate for `sourceRate`, chosen by FAMILY (44.1 vs 48) rather than
+    /// Legacy candidate rate for `sourceRate`, chosen by family rather than
     /// absolute distance: 88.2 kHz belongs to the 44.1 family even though
     /// 96 kHz is numerically closer to it than 44.1 is, because 88.2 → 44.1 is
     /// a clean 2:1 decimation while 88.2 → 48 is a messy ratio.
@@ -62,9 +53,8 @@ enum OutputSampleRate {
         return asbd.mSampleRate > 0 ? asbd.mSampleRate : nil
     }
 
-    /// Requests the matching rate on the shared session. Best-effort: iOS may
-    /// refuse (another app owns the route, hardware disagrees), which is fine —
-    /// playback continues at whatever rate the system picks.
+    /// Requests a candidate rate on the shared session. This does not report
+    /// the effective output rate and is not used by the local playback path.
     static func apply(forSource sourceRate: Double,
                       session: AVAudioSession = .sharedInstance()) {
         guard let target = preferredRate(forSource: sourceRate) else { return }

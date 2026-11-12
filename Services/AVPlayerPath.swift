@@ -4,7 +4,8 @@ import os.log
 
 private let log = Logger(subsystem: "com.aria.music", category: "AVPlayerPath")
 
-/// Owns the no-EQ playback path: `AVPlayer` + `AVPlayerItem` + KVO observers
+/// Owns local and streamed `AVPlayer` playback. EQ, when enabled, uses an
+/// audio processing tap on the current item; with EQ off the tap is absent.
 /// + item-scoped end-of-track notification. All cross-component state lives
 /// on `PlayerManager` and is mutated through the weak `player` reference.
 @MainActor
@@ -79,15 +80,6 @@ final class AVPlayerPath {
 
         let asset = AVURLAsset(url: url)
         playerItem = AVPlayerItem(asset: asset)
-        // Ask the session for the honored rate matching this file's family
-        // (44.1 vs 48) so iOS doesn't resample for no reason. Async because
-        // reading the format means loading the track; playback is not gated on
-        // it — the rate applies as soon as it's known.
-        Task { [weak self] in
-            guard let rate = await OutputSampleRate.sourceRate(of: asset) else { return }
-            guard self?.playerItem?.asset === asset else { return }  // item swapped meanwhile
-            OutputSampleRate.apply(forSource: rate)
-        }
         // Buffer ~2s ahead (was 10) so playback starts sooner — lower
         // time-to-first-sound. A mid-track drain is now handled gracefully by
         // the timeControlStatus rebuffer/recovery path, so a smaller lead buffer
