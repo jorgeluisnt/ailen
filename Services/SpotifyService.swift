@@ -90,6 +90,36 @@ final class SpotifyService: NSObject, ObservableObject {
         return session.accessToken
     }
 
+    /// Callers waiting for a renewal in flight.
+    private var tokenWaiters: [CheckedContinuation<String?, Never>] = []
+
+    /// A valid token, renewing it first if it expired.
+    func freshAccessToken() async -> String? {
+        if let token = accessToken { return token }
+        return await renewedAccessToken()
+    }
+
+    /// Forces a renewal (after a 401) and waits for it.
+    func renewedAccessToken() async -> String? {
+        guard let sessionManager, sessionManager.session != nil else { return nil }
+        return await withCheckedContinuation { continuation in
+            tokenWaiters.append(continuation)
+            if tokenWaiters.count == 1 { sessionManager.renewSession() }
+        }
+    }
+
+    private func finishRenewal(_ token: String?) {
+        let waiters = tokenWaiters
+        tokenWaiters.removeAll()
+        waiters.forEach { $0.resume(returning: token) }
+    }
+
+    /// Web API client using this service's session.
+    var webAPI: SpotifyWebAPI {
+        SpotifyWebAPI(token: { [weak self] in await self?.freshAccessToken() },
+                      renewedToken: { [weak self] in await self?.renewedAccessToken() })
+    }
+
     private func refreshState() {
         guard let sessionManager else { state = .notConfigured; return }
         if !sessionManager.isSpotifyAppInstalled {
@@ -211,6 +241,10 @@ final class SpotifyService: NSObject, ObservableObject {
         appRemote?.playerAPI?.seek(toPosition: Int(seconds * 1000), callback: nil)
     }
 
+    func setShuffle(_ on: Bool) {
+        appRemote?.playerAPI?.setShuffle(on, callback: nil)
+    }
+
     func toggleShuffle() {
         guard let current = nowPlaying else { return }
         appRemote?.playerAPI?.setShuffle(!current.isShuffling, callback: nil)
@@ -280,15 +314,19 @@ final class SpotifyService: NSObject, ObservableObject {
 
 extension SpotifyService: SPTSessionManagerDelegate {
     nonisolated func sessionManager(manager: SPTSessionManager, didInitiate session: SPTSession) {
+        let token = session.accessToken
         Task { @MainActor in
             Self.save(session)
+            self.finishRenewal(token)
             self.connect(userInitiated: true)
         }
     }
 
     nonisolated func sessionManager(manager: SPTSessionManager, didRenew session: SPTSession) {
+        let token = session.accessToken
         Task { @MainActor in
             Self.save(session)
+            self.finishRenewal(token)
             self.connect(userInitiated: false)
         }
     }
@@ -296,6 +334,7 @@ extension SpotifyService: SPTSessionManagerDelegate {
     nonisolated func sessionManager(manager: SPTSessionManager, didFailWith error: Error) {
         let message = error.localizedDescription
         Task { @MainActor in
+            self.finishRenewal(nil)
             self.state = .failed("No se pudo iniciar sesión en Spotify: \(message)")
         }
     }
