@@ -44,6 +44,16 @@ enum FolderImporter {
         return found.sorted { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
     }
 
+    /// `file`'s folder relative to `root`: "Rock/Queen", or "" when the file
+    /// sits directly in `root`. Paths are compared after resolving symlinks
+    /// (/private/var vs /var).
+    static func relativeFolder(of file: URL, in root: URL) -> String {
+        let rootParts = root.resolvingSymlinksInPath().standardizedFileURL.pathComponents
+        let dirParts = file.deletingLastPathComponent().resolvingSymlinksInPath().standardizedFileURL.pathComponents
+        guard dirParts.starts(with: rootParts) else { return "" }
+        return dirParts.dropFirst(rootParts.count).joined(separator: "/")
+    }
+
     /// Imports every audio file under `folder`. `importFile` throws per-file
     /// (unsupported format, zero-byte, iCloud placeholder); those count as
     /// skipped rather than aborting the run — one bad file in a 500-track
@@ -52,7 +62,7 @@ enum FolderImporter {
     /// `onProgress` fires after each file so the UI can show live counts.
     static func importAll(
         from folder: URL,
-        importFile: (URL) async throws -> Void,
+        importFile: (URL, String) async throws -> Void,
         onProgress: @MainActor (Progress) -> Void
     ) async -> Progress {
         let didStart = folder.startAccessingSecurityScopedResource()
@@ -64,7 +74,7 @@ enum FolderImporter {
 
         for file in files {
             do {
-                try await importFile(file)
+                try await importFile(file, relativeFolder(of: file, in: folder))
                 progress.imported += 1
             } catch {
                 progress.skipped += 1

@@ -49,6 +49,16 @@ struct LibraryCollection: Identifiable, Hashable {
     let artworkTrack: LocalTrack?
 }
 
+/// A folder at one level of the Folders browser.
+struct FolderEntry: Identifiable, Hashable {
+    /// Path component used to go one level down.
+    let key: String
+    let title: String
+    /// Songs in this folder and all its subfolders.
+    let songCount: Int
+    var id: String { key }
+}
+
 struct LibrarySection: Identifiable, Hashable {
     let id: String
     let title: String
@@ -167,6 +177,43 @@ final class LibraryViewModel: ObservableObject {
     }
 
     private static let unknownKey = "\u{1F}unknown"
+
+    /// Path key of the virtual folder holding tracks imported before folders
+    /// were recorded. The control character keeps it from clashing with a
+    /// real folder called "Sin carpeta".
+    static let noFolderKey = "\u{1F}nofolder"
+
+    /// Subfolders and songs at `path` (components below the folder the user
+    /// picked). `tracks` order is kept, so the current sort applies.
+    static func folderContents(_ tracks: [LocalTrack], at path: [String])
+        -> (folders: [FolderEntry], tracks: [LocalTrack]) {
+        if path == [noFolderKey] {
+            return ([], tracks.filter { $0.folderPath == nil })
+        }
+        var counts: [String: Int] = [:]
+        var here: [LocalTrack] = []
+        for track in tracks {
+            guard let folderPath = track.folderPath else {
+                if path.isEmpty { counts[noFolderKey, default: 0] += 1 }
+                continue
+            }
+            let parts = folderPath.split(separator: "/").map(String.init)
+            guard parts.starts(with: path) else { continue }
+            if parts.count == path.count {
+                here.append(track)
+            } else {
+                counts[parts[path.count], default: 0] += 1
+            }
+        }
+        let folders = counts.keys.sorted { lhs, rhs in
+            if lhs == noFolderKey { return false }
+            if rhs == noFolderKey { return true }
+            return lhs.localizedStandardCompare(rhs) == .orderedAscending
+        }.map { key in
+            FolderEntry(key: key, title: key == noFolderKey ? "Sin carpeta" : key, songCount: counts[key] ?? 0)
+        }
+        return (folders, here)
+    }
 
     static func songCount(_ n: Int) -> String { "\(n) \(n == 1 ? "canción" : "canciones")" }
 

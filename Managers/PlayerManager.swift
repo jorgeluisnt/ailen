@@ -825,14 +825,20 @@ final class PlayerManager: NSObject, ObservableObject {
     /// playback moves to the next queued track, or stops. Call before
     /// deleting the file so AVPlayer is no longer reading it.
     func forget(_ track: Track) {
-        queue.removeAll { $0.id == track.id }
-        unshuffledQueue?.removeAll { $0.id == track.id }
-        playHistory.removeAll { $0.id == track.id }
-        guard currentTrack?.id == track.id else { return }
+        forget(where: { $0.id == track.id })
+    }
+
+    /// `forget` for every track matching `shouldForget` (e.g. all local
+    /// tracks when the library is cleared).
+    func forget(where shouldForget: (Track) -> Bool) {
+        queue.removeAll(where: shouldForget)
+        unshuffledQueue?.removeAll(where: shouldForget)
+        playHistory.removeAll(where: shouldForget)
+        guard let current = currentTrack, shouldForget(current) else { return }
         if !queue.isEmpty {
             let next = queue.removeFirst()
             unshuffledQueue?.removeAll { $0.id == next.id }
-            startPlayback(next)  // not play(): that would push the deleted track onto history
+            startPlayback(next)  // not play(): that would push the forgotten track onto history
         } else {
             stopAllPlayback()
             currentStreamURL = nil

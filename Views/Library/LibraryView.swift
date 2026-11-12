@@ -330,10 +330,22 @@ struct LibraryView: View {
         } else {
             switch scope.wrappedValue {
             case .songs:
-                ScrollView {
-                    trackSections(vm.sections, showHeaders: vm.groupBy != .none,
-                                  playIn: vm.filteredAndSortedTracks)
-                        .padding(.vertical, DS.Spacing.sm)
+                let anchors = songAnchors
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        trackSections(vm.sections, showHeaders: vm.groupBy != .none,
+                                      playIn: vm.filteredAndSortedTracks)
+                            .padding(.vertical, DS.Spacing.sm)
+                            .padding(.trailing, anchors == nil ? 0 : AlphabetIndexBar.width)
+                    }
+                    .overlay(alignment: .trailing) {
+                        if let anchors, anchors.count > 1 {
+                            AlphabetIndexBar(available: Set(anchors.keys), tokens: tokens) { letter in
+                                if let id = anchors[letter] { proxy.scrollTo(id, anchor: .top) }
+                            }
+                            .padding(.vertical, DS.Spacing.lg)
+                        }
+                    }
                 }
             case .albums:
                 CollectionGrid(collections: vm.albums, tokens: tokens) { collectionDetail($0) }
@@ -341,7 +353,29 @@ struct LibraryView: View {
                 CollectionGrid(collections: vm.artists, tokens: tokens) { collectionDetail($0) }
             case .genres:
                 genresContent
+            case .folders:
+                folderLevel([])
             }
+        }
+    }
+
+    /// First row per letter for the A–Z bar, or `nil` when the current order
+    /// isn't alphabetical (recently added, duration, size).
+    private var songAnchors: [String: AnyHashable]? {
+        if vm.groupBy != .none {
+            return AlphabetIndex.anchors(vm.sections.filter { !$0.tracks.isEmpty },
+                                         letter: { AlphabetIndex.letter(for: $0.title) },
+                                         id: { AnyHashable($0.tracks[0].id) })
+        }
+        switch vm.sortOrder {
+        case .title:
+            return AlphabetIndex.anchors(vm.filteredAndSortedTracks,
+                                         letter: { AlphabetIndex.letter(for: $0.title) }, id: { AnyHashable($0.id) })
+        case .artist:
+            return AlphabetIndex.anchors(vm.filteredAndSortedTracks,
+                                         letter: { AlphabetIndex.letter(for: $0.artist) }, id: { AnyHashable($0.id) })
+        case .recentlyAdded, .duration, .fileSize:
+            return nil
         }
     }
 
@@ -367,6 +401,73 @@ struct LibraryView: View {
     }
 
     // MARK: - Browse: genres and collection detail
+
+    // MARK: - Browse: folders
+
+    /// One level of the Folders browser: subfolders, then the songs that sit
+    /// directly in this folder. AnyView because levels nest recursively.
+    private func folderLevel(_ path: [String]) -> AnyView {
+        let contents = LibraryViewModel.folderContents(vm.filteredAndSortedTracks, at: path)
+        return AnyView(
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 2) {
+                    ForEach(contents.folders) { folder in
+                        NavigationLink {
+                            ZStack {
+                                tokens.background.ignoresSafeArea()
+                                folderLevel(path + [folder.key])
+                            }
+                            .navigationTitle(folder.title)
+                            .navigationBarTitleDisplayMode(.inline)
+                        } label: {
+                            folderRow(folder)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    if !contents.tracks.isEmpty {
+                        trackSections([LibrarySection(id: path.joined(separator: "/"), title: "", tracks: contents.tracks)],
+                                      showHeaders: false, playIn: contents.tracks)
+                    }
+                    if contents.folders.isEmpty && contents.tracks.isEmpty {
+                        Text("No hay canciones en esta carpeta.")
+                            .font(DS.Typography.body)
+                            .foregroundColor(tokens.textSecondary)
+                            .padding(DS.Spacing.lg)
+                    }
+                }
+                .padding(.vertical, DS.Spacing.sm)
+            }
+        )
+    }
+
+    private func folderRow(_ folder: FolderEntry) -> some View {
+        let unknown = folder.key == LibraryViewModel.noFolderKey
+        return HStack(spacing: DS.Spacing.md) {
+            Image(systemName: unknown ? "questionmark.folder.fill" : "folder.fill")
+                .font(.title2)
+                .foregroundStyle(tokens.accentGradient)
+                .frame(width: 44, height: 44)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(folder.title)
+                    .font(.body.weight(.medium))
+                    .foregroundColor(tokens.textPrimary)
+                    .lineLimit(1)
+                Text(unknown ? "Importadas antes de guardar carpetas · \(LibraryViewModel.songCount(folder.songCount))"
+                             : LibraryViewModel.songCount(folder.songCount))
+                    .font(.caption)
+                    .foregroundColor(tokens.textSecondary)
+                    .lineLimit(1)
+            }
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundColor(tokens.textSecondary)
+        }
+        .padding(.horizontal, DS.Spacing.lg)
+        .padding(.vertical, 6)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+    }
 
     private var genresContent: some View {
         let current = vm.genres.first(where: { $0.id == selectedGenre }) ?? vm.genres.first
@@ -563,7 +664,7 @@ struct LibraryView: View {
     private func importFolder(_ folder: URL) async {
         let result = await FolderImporter.importAll(
             from: folder,
-            importFile: { url in _ = try await libraryManager.importFile(at: url) },
+            importFile: { url, folder in _ = try await libraryManager.importFile(at: url, folderPath: folder) },
             onProgress: { progress in
                 withAnimation(.easeOut(duration: 0.15)) { importProgress = progress }
             }

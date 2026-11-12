@@ -34,6 +34,10 @@ struct LocalTrack: Identifiable, Codable, Hashable {
     /// Genre tag from the file. `nil` = not read yet (tracks imported before
     /// genre support; filled in by `LocalLibraryManager`), `""` = read, no tag.
     let genre: String?
+    /// Folder the file came from, relative to the folder the user picked
+    /// ("Rock/Queen"; "" = directly in it). `nil` = imported before folders
+    /// were recorded.
+    let folderPath: String?
     let isMissing: Bool
 
     /// The genre to show or group by; `nil` when the file has none.
@@ -50,6 +54,7 @@ struct LocalTrack: Identifiable, Codable, Hashable {
         durationSeconds: Double?,
         album: String? = nil,
         genre: String? = nil,
+        folderPath: String? = nil,
         isMissing: Bool = false
     ) {
         self.id = id
@@ -62,13 +67,15 @@ struct LocalTrack: Identifiable, Codable, Hashable {
         self.durationSeconds = durationSeconds
         self.album = album
         self.genre = genre
+        self.folderPath = folderPath
         self.isMissing = isMissing
     }
 
     func withGenre(_ genre: String) -> LocalTrack {
         LocalTrack(id: id, title: title, artist: artist, artworkFileName: artworkFileName,
                    fileName: fileName, importedAt: importedAt, fileSizeBytes: fileSizeBytes,
-                   durationSeconds: durationSeconds, album: album, genre: genre, isMissing: isMissing)
+                   durationSeconds: durationSeconds, album: album, genre: genre,
+                   folderPath: folderPath, isMissing: isMissing)
     }
 
     // MARK: - Codable migration
@@ -78,7 +85,7 @@ struct LocalTrack: Identifiable, Codable, Hashable {
         case artworkFileName
         /// Legacy key: older builds persisted an absolute `URL` here.
         case artworkURL
-        case fileName, importedAt, fileSizeBytes, durationSeconds, album, genre, isMissing
+        case fileName, importedAt, fileSizeBytes, durationSeconds, album, genre, folderPath, isMissing
     }
 
     init(from decoder: Decoder) throws {
@@ -92,6 +99,7 @@ struct LocalTrack: Identifiable, Codable, Hashable {
         durationSeconds = try container.decodeIfPresent(Double.self, forKey: .durationSeconds)
         album = try container.decodeIfPresent(String.self, forKey: .album)
         genre = try container.decodeIfPresent(String.self, forKey: .genre)
+        folderPath = try container.decodeIfPresent(String.self, forKey: .folderPath)
         isMissing = try container.decodeIfPresent(Bool.self, forKey: .isMissing) ?? false
 
         // Prefer the new relative field; otherwise migrate from the legacy
@@ -125,6 +133,7 @@ struct LocalTrack: Identifiable, Codable, Hashable {
         try container.encodeIfPresent(durationSeconds, forKey: .durationSeconds)
         try container.encodeIfPresent(album, forKey: .album)
         try container.encodeIfPresent(genre, forKey: .genre)
+        try container.encodeIfPresent(folderPath, forKey: .folderPath)
         try container.encode(isMissing, forKey: .isMissing)
         // Note: the legacy `artworkURL` key is intentionally never written.
     }

@@ -7,7 +7,9 @@ struct MoreView: View {
     @EnvironmentObject private var playlistsManager: PlaylistsManager
     @EnvironmentObject private var recentlyPlayedManager: RecentlyPlayedManager
     @EnvironmentObject private var themeManager: ThemeManager
+    @EnvironmentObject private var localLibraryManager: LocalLibraryManager
 
+    @State private var showClearLibraryAlert = false
     @State private var showClearFavoritesAlert = false
     @State private var showDeletePlaylistsAlert = false
     @State private var showClearCacheAlert = false
@@ -56,6 +58,15 @@ struct MoreView: View {
             }
         } message: {
             Text("Se borrarán todas las imágenes y datos en caché.")
+        }
+        .alert("Limpiar biblioteca", isPresented: $showClearLibraryAlert) {
+            Button("Cancelar", role: .cancel) {}
+            Button("Borrar todo", role: .destructive) {
+                Haptics.warning()
+                clearLibrary()
+            }
+        } message: {
+            Text("Se borrarán de este dispositivo \(LibraryViewModel.songCount(localLibraryManager.tracks.count)) importadas, con sus portadas, y se quitarán de Favoritos, listas, cola e historial. Las listas se conservan. Tus archivos originales en la app Archivos no se tocan. Esta acción no se puede deshacer.")
         }
         .alert("Borrar todos los favoritos", isPresented: $showClearFavoritesAlert) {
             Button("Cancelar", role: .cancel) {}
@@ -387,6 +398,17 @@ struct MoreView: View {
 
                 Button {
                     Haptics.warning()
+                    showClearLibraryAlert = true
+                } label: {
+                    row(icon: "trash", iconColor: .red, title: "Limpiar biblioteca", isButton: true)
+                }
+                .buttonStyle(.plain)
+                .disabled(localLibraryManager.tracks.isEmpty)
+
+                Divider().background(tokens.hairline).padding(.leading, 56)
+
+                Button {
+                    Haptics.warning()
                     showClearFavoritesAlert = true
                 } label: {
                     row(icon: "heart.slash", iconColor: .red, title: "Borrar todos los favoritos", isButton: true)
@@ -494,6 +516,17 @@ struct MoreView: View {
                 }
             }
         }
+    }
+
+    /// Drops every reference to imported tracks, then deletes the files.
+    /// The player lets go first so AVPlayer is no longer reading a file.
+    private func clearLibrary() {
+        let isLocal: (Track) -> Bool = { $0.localFileURL != nil || $0.id.hasPrefix("local:") }
+        playerManager.forget(where: isLocal)
+        favoritesManager.removeAll(where: isLocal)
+        playlistsManager.removeTracks(where: isLocal)
+        recentlyPlayedManager.removeAll(where: isLocal)
+        localLibraryManager.removeAll()
     }
 
     // MARK: - Theme Picker

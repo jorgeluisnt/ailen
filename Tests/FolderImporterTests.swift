@@ -74,7 +74,7 @@ final class FolderImporterTests: XCTestCase {
         var progressUpdates: [FolderImporter.Progress] = []
         let result = await FolderImporter.importAll(
             from: root,
-            importFile: { url in
+            importFile: { url, _ in
                 if url.lastPathComponent == "bad.flac" {
                     throw ImportError.unsupportedFormat(format: .unknown)
                 }
@@ -91,7 +91,7 @@ final class FolderImporterTests: XCTestCase {
 
     func test_importAll_emptyFolder_reportsZeroTotal() async {
         let result = await FolderImporter.importAll(
-            from: root, importFile: { _ in }, onProgress: { _ in })
+            from: root, importFile: { _, _ in }, onProgress: { _ in })
         XCTAssertEqual(result, FolderImporter.Progress(imported: 0, skipped: 0, total: 0))
     }
 }

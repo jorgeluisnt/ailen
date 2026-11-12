@@ -57,6 +57,11 @@ final class FavoritesManager: ObservableObject {
         save()
     }
 
+    func removeAll(where shouldRemove: (Track) -> Bool) {
+        tracks.removeAll(where: shouldRemove)
+        save()
+    }
+
     /// Backwards-compatible accessor. Prefer the published `grouped` property.
     func groupedByLetter() -> [(letter: String, tracks: [Track])] {
         grouped

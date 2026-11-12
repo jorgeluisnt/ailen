@@ -2,7 +2,7 @@ import SwiftUI
 
 /// What the Library shows. Raw values are persisted (`@AppStorage`).
 enum LibraryScope: String, CaseIterable, Identifiable {
-    case songs, albums, artists, genres
+    case songs, albums, artists, genres, folders
 
     var id: String { rawValue }
 
@@ -12,6 +12,7 @@ enum LibraryScope: String, CaseIterable, Identifiable {
         case .albums: return "Álbumes"
         case .artists: return "Artistas"
         case .genres: return "Géneros"
+        case .folders: return "Carpetas"
         }
     }
 }
@@ -90,17 +91,33 @@ struct CollectionGrid<Destination: View>: View {
     let destination: (LibraryCollection) -> Destination
 
     var body: some View {
-        ScrollView {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 100, maximum: 180), spacing: DS.Spacing.md)],
-                      spacing: DS.Spacing.lg) {
-                ForEach(collections) { collection in
-                    NavigationLink { destination(collection) } label: {
-                        CollectionTile(collection: collection, tokens: tokens)
+        // Collections are A→Z, so the first one per letter is the jump target.
+        let anchors = AlphabetIndex.anchors(collections, letter: { AlphabetIndex.letter(for: $0.title) },
+                                            id: { AnyHashable($0.id) })
+        let showIndex = anchors.count > 1
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 100, maximum: 180), spacing: DS.Spacing.md)],
+                          spacing: DS.Spacing.lg) {
+                    ForEach(collections) { collection in
+                        NavigationLink { destination(collection) } label: {
+                            CollectionTile(collection: collection, tokens: tokens)
+                        }
+                        .buttonStyle(.plain)
+                        .id(collection.id)
                     }
-                    .buttonStyle(.plain)
+                }
+                .padding(DS.Spacing.lg)
+                .padding(.trailing, showIndex ? AlphabetIndexBar.width : 0)
+            }
+            .overlay(alignment: .trailing) {
+                if showIndex {
+                    AlphabetIndexBar(available: Set(anchors.keys), tokens: tokens) { letter in
+                        if let id = anchors[letter] { proxy.scrollTo(id, anchor: .top) }
+                    }
+                    .padding(.vertical, DS.Spacing.lg)
                 }
             }
-            .padding(DS.Spacing.lg)
         }
     }
 }

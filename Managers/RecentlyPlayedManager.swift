@@ -79,6 +79,17 @@ final class RecentlyPlayedManager: ObservableObject {
         saveStats()
     }
 
+    /// Drops matching tracks from both lists and their play statistics.
+    func removeAll(where shouldRemove: (Track) -> Bool) {
+        let gone = Set((recentlyPlayed + recentlyAdded).filter(shouldRemove).map(\.id))
+        recentlyPlayed.removeAll(where: shouldRemove)
+        recentlyAdded.removeAll(where: shouldRemove)
+        playStats = playStats.filter { !gone.contains($0.key) }
+        savePlayed()
+        saveAdded()
+        saveStats()
+    }
+
     func trackPlayed(_ track: Track, at date: Date = Date()) {
         recentlyPlayed.removeAll { $0.id == track.id }
         recentlyPlayed.insert(track, at: 0)

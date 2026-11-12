@@ -97,6 +97,12 @@ final class PlaylistsManager: ObservableObject {
         save()
     }
 
+    /// Removes matching tracks from every playlist; the playlists stay.
+    func removeTracks(where shouldRemove: (Track) -> Bool) {
+        for i in playlists.indices { playlists[i].tracks.removeAll(where: shouldRemove) }
+        save()
+    }
+
     func markPlayed(_ playlist: Playlist) {
         guard let idx = playlists.firstIndex(where: { $0.id == playlist.id }) else { return }
         playlists[idx].lastPlayedAt = Date()

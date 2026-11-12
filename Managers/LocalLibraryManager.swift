@@ -290,7 +290,9 @@ final class LocalLibraryManager: ObservableObject {
     /// adds a `LocalTrack` entry. The caller must hold a security-scoped
     /// reference (start/stop are managed here) so the read can succeed
     /// even if the picker URL is from outside the app sandbox.
-    func importFile(at sourceURL: URL) async throws -> LocalTrack {
+    /// `folderPath` is the file's folder relative to the folder the user
+    /// picked; for single files, `nil` records the file's parent folder name.
+    func importFile(at sourceURL: URL, folderPath: String? = nil) async throws -> LocalTrack {
         let didStart = sourceURL.startAccessingSecurityScopedResource()
         defer { if didStart { sourceURL.stopAccessingSecurityScopedResource() } }
 
@@ -338,7 +340,8 @@ final class LocalLibraryManager: ObservableObject {
             fileSizeBytes: storedSize,
             durationSeconds: duration,
             album: album,
-            genre: genre ?? ""
+            genre: genre ?? "",
+            folderPath: folderPath ?? sourceURL.deletingLastPathComponent().lastPathComponent
         )
         tracks.insert(track, at: 0)
         save()
@@ -355,6 +358,19 @@ final class LocalLibraryManager: ObservableObject {
         }
         tracks.removeAll { $0.id == track.id }
         save()
+    }
+
+    /// "Limpiar biblioteca": deletes every imported audio file and its
+    /// artwork, empties the index and writes it immediately. Callers drop the
+    /// tracks from the player, favourites and playlists first.
+    func removeAll() {
+        for track in tracks {
+            try? fileManager.removeItem(at: fileURL(for: track))
+            if let art = artworkURL(for: track) { try? fileManager.removeItem(at: art) }
+        }
+        tracks.removeAll()
+        save()
+        flushPendingWrites()
     }
 
     /// Replaces a missing track's on-disk file with a new one the user
@@ -394,6 +410,8 @@ final class LocalLibraryManager: ObservableObject {
             importedAt: Date(),
             fileSizeBytes: (try? fileManager.attributesOfItem(atPath: newFile.path)[.size] as? Int64) ?? 0,
             durationSeconds: old.durationSeconds,
+            album: old.album,
+            folderPath: old.folderPath,
             isMissing: false
         )
 
@@ -450,6 +468,7 @@ final class LocalLibraryManager: ObservableObject {
                 durationSeconds: track.durationSeconds,
                 album: track.album,
                 genre: track.genre,
+                folderPath: track.folderPath,
                 isMissing: !exists
             )
         }
@@ -681,6 +700,7 @@ final class LocalLibraryManager: ObservableObject {
             durationSeconds: current.durationSeconds,
             album: current.album,
             genre: current.genre,
+            folderPath: current.folderPath,
             isMissing: current.isMissing
         )
         save()
@@ -779,6 +799,7 @@ final class LocalLibraryManager: ObservableObject {
             durationSeconds: current.durationSeconds,
             album: current.album,
             genre: current.genre,
+            folderPath: current.folderPath,
             isMissing: current.isMissing
         )
         save()
