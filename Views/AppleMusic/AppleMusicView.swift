@@ -1,4 +1,5 @@
 import MediaPlayer
+import MusicKit
 import SwiftUI
 
 /// Optional Apple Music section: the user's library (playlists, albums,
@@ -19,6 +20,7 @@ struct AppleMusicView: View {
     }
 
     @AppStorage("appleMusicShelf") private var shelfRaw = Shelf.playlists.rawValue
+    @AppStorage("appleMusicMode") private var modeRaw = "library"
     @State private var searchText = ""
 
     private var tokens: DesignTokens { themeManager.tokens }
@@ -29,7 +31,7 @@ struct AppleMusicView: View {
             ZStack {
                 tokens.background.ignoresSafeArea()
                 switch service.libraryAuth {
-                case .authorized: library
+                case .authorized: authorizedContent
                 case .notDetermined: permissionPrompt
                 default: permissionDenied
                 }
@@ -43,6 +45,168 @@ struct AppleMusicView: View {
         .task {
             if service.libraryAuth == .authorized && service.songs.isEmpty { service.loadLibrary() }
         }
+        .alert("Apple Music", isPresented: Binding(get: { service.alertMessage != nil },
+                                                   set: { if !$0 { service.alertMessage = nil } })) {
+            Button("Aceptar", role: .cancel) { service.alertMessage = nil }
+        } message: { Text(service.alertMessage ?? "") }
+    }
+
+    private var isSearchMode: Bool { modeRaw == "search" }
+
+    /// Biblioteca (works with any account) · Buscar (catalog, needs MusicKit).
+    private var authorizedContent: some View {
+        VStack(spacing: 0) {
+            Picker("Modo", selection: $modeRaw) {
+                Text("Mi biblioteca").tag("library")
+                Text("Buscar en Apple Music").tag("search")
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, DS.Spacing.lg)
+            .padding(.top, DS.Spacing.sm)
+            .frame(maxWidth: 480)
+            if isSearchMode { catalogContent } else { library }
+        }
+        .searchable(text: $searchText, prompt: isSearchMode ? "Canciones, álbumes, artistas" : "Buscar en tu biblioteca")
+        // Catalog: search 0.4 s after typing stops.
+        .task(id: isSearchMode ? searchText : "") {
+            guard isSearchMode else { return }
+            try? await Task.sleep(nanoseconds: 400_000_000)
+            guard !Task.isCancelled else { return }
+            await service.searchCatalog(searchText)
+        }
+    }
+
+    // MARK: - Catalog
+
+    @ViewBuilder
+    private var catalogContent: some View {
+        switch service.catalogState {
+        case .idle:
+            emptyText("Busca canciones y álbumes en el catálogo de Apple Music. Necesita conexión a internet.")
+        case .searching:
+            VStack { Spacer(); ProgressView(); Spacer() }
+        case .unavailable(let message):
+            VStack(spacing: DS.Spacing.md) {
+                Spacer()
+                Image(systemName: "exclamationmark.triangle")
+                    .font(.system(size: 36, weight: .light))
+                    .foregroundColor(tokens.textSecondary)
+                Text(message)
+                    .font(DS.Typography.body)
+                    .foregroundColor(tokens.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 460)
+                Spacer()
+            }
+            .padding(DS.Spacing.xl)
+        case .results:
+            ScrollView {
+                VStack(alignment: .leading, spacing: DS.Spacing.lg) {
+                    if !service.catalogAlbums.isEmpty {
+                        sectionTitle("Álbumes")
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            LazyHStack(alignment: .top, spacing: DS.Spacing.md) {
+                                ForEach(service.catalogAlbums) { album in catalogAlbumTile(album) }
+                            }
+                            .padding(.horizontal, DS.Spacing.lg)
+                        }
+                    }
+                    if !service.catalogSongs.isEmpty {
+                        sectionTitle("Canciones")
+                        LazyVStack(spacing: 2) {
+                            ForEach(Array(service.catalogSongs.enumerated()), id: \.element.id) { index, song in
+                                catalogSongRow(song, index: index)
+                            }
+                        }
+                    }
+                    if service.catalogAlbums.isEmpty && service.catalogSongs.isEmpty {
+                        emptyText("Sin resultados.")
+                    }
+                }
+                .padding(.vertical, DS.Spacing.md)
+            }
+        }
+    }
+
+    private func sectionTitle(_ text: String) -> some View {
+        Text(text.uppercased())
+            .font(.footnote.weight(.semibold))
+            .tracking(1.5)
+            .foregroundColor(tokens.textSecondary)
+            .padding(.horizontal, DS.Spacing.lg)
+            .accessibilityAddTraits(.isHeader)
+    }
+
+    private func catalogAlbumTile(_ album: Album) -> some View {
+        Button { Task { await service.playCatalogAlbum(album) } } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                catalogArtwork(album.artwork, size: 150, corner: 12)
+                Text(album.title).font(DS.Typography.bodyEm).foregroundColor(tokens.textPrimary).lineLimit(1)
+                Text(album.artistName).font(DS.Typography.caption).foregroundColor(tokens.textSecondary).lineLimit(1)
+            }
+            .frame(width: 150, alignment: .leading)
+        }
+        .buttonStyle(.plain)
+        .contextMenu {
+            Button { Task { await service.playCatalogAlbum(album) } } label: { Label("Reproducir", systemImage: "play.fill") }
+            Button { Task { await service.playCatalogAlbum(album, shuffled: true) } } label: { Label("Aleatorio", systemImage: "shuffle") }
+            addButton(added: service.addedToLibrary.contains(album.id)) { await service.addToLibrary(album) }
+        }
+        .accessibilityLabel("\(album.title), \(album.artistName)")
+    }
+
+    private func catalogSongRow(_ song: Song, index: Int) -> some View {
+        HStack(spacing: DS.Spacing.md) {
+            Button { Task { await service.playCatalog(service.catalogSongs, startAt: index) } } label: {
+                HStack(spacing: DS.Spacing.md) {
+                    catalogArtwork(song.artwork, size: 48, corner: 10)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(song.title).font(.body.weight(.medium)).foregroundColor(tokens.textPrimary).lineLimit(1)
+                        Text(song.artistName).font(.caption).foregroundColor(tokens.textSecondary).lineLimit(1)
+                    }
+                    Spacer()
+                    if let duration = song.duration {
+                        Text(formatPlaybackTime(duration)).font(.caption.monospacedDigit()).foregroundColor(tokens.textSecondary)
+                    }
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            Menu {
+                addButton(added: service.addedToLibrary.contains(song.id)) { await service.addToLibrary(song) }
+            } label: {
+                Image(systemName: service.addedToLibrary.contains(song.id) ? "checkmark" : "ellipsis")
+                    .font(.body.weight(.semibold))
+                    .foregroundColor(tokens.textSecondary)
+                    .frame(width: 40, height: 44)
+            }
+            .accessibilityLabel("Más opciones para \(song.title)")
+        }
+        .padding(.leading, DS.Spacing.lg)
+        .padding(.trailing, DS.Spacing.xs)
+        .padding(.vertical, 4)
+    }
+
+    @ViewBuilder
+    private func addButton(added: Bool, action: @escaping () async -> Void) -> some View {
+        if added {
+            Label("En tu biblioteca", systemImage: "checkmark")
+        } else {
+            Button { Task { await action() } } label: { Label("Añadir a mi biblioteca", systemImage: "plus") }
+        }
+    }
+
+    private func catalogArtwork(_ artwork: Artwork?, size: CGFloat, corner: CGFloat) -> some View {
+        Group {
+            if let artwork {
+                ArtworkImage(artwork, width: size, height: size)
+            } else {
+                ArtworkPlaceholder(tokens: tokens, cornerRadius: corner)
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
+        .accessibilityHidden(true)
     }
 
     // MARK: - Library
@@ -73,7 +237,6 @@ struct AppleMusicView: View {
                 }
             }
         }
-        .searchable(text: $searchText, prompt: "Buscar en tu biblioteca")
         .refreshable { service.loadLibrary() }
     }
 

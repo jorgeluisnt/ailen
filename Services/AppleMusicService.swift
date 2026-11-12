@@ -1,5 +1,6 @@
 import Combine
 import MediaPlayer
+import MusicKit
 import SwiftUI
 
 /// A song from the user's Apple Music / Music app library.
@@ -36,6 +37,15 @@ final class AppleMusicService: ObservableObject {
     @Published private(set) var isLoading = false
     @Published private(set) var nowPlaying: AMSong?
     @Published private(set) var isPlaying = false
+
+    // Catalog (MusicKit service; needs a paid developer account).
+    enum CatalogState: Equatable { case idle, searching, results, unavailable(String) }
+    @Published private(set) var catalogState: CatalogState = .idle
+    @Published private(set) var catalogSongs: [Song] = []
+    @Published private(set) var catalogAlbums: [Album] = []
+    @Published private(set) var addedToLibrary: Set<MusicItemID> = []
+    /// One-off messages (subscription missing, add failed…).
+    @Published var alertMessage: String?
 
     private weak var music: PlayerManager?
     private weak var video: VideoPlaybackController?
@@ -152,6 +162,90 @@ final class AppleMusicService: ObservableObject {
         guard let player else { return }
         nowPlaying = player.nowPlayingItem.map(AMSong.init)
         isPlaying = player.playbackState == .playing
+    }
+
+    // MARK: - Catalog (MusicKit)
+
+    func searchCatalog(_ rawTerm: String) async {
+        let term = rawTerm.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !term.isEmpty else {
+            catalogState = .idle
+            catalogSongs = []
+            catalogAlbums = []
+            return
+        }
+        catalogState = .searching
+        let status = await MusicAuthorization.request()
+        if let message = AppleMusicAvailability.message(forAuthorization: status) {
+            catalogState = .unavailable(message)
+            return
+        }
+        do {
+            var request = MusicCatalogSearchRequest(term: term, types: [Song.self, Album.self])
+            request.limit = 25
+            let response = try await request.response()
+            guard !Task.isCancelled else { return }
+            catalogSongs = Array(response.songs)
+            catalogAlbums = Array(response.albums)
+            catalogState = .results
+        } catch {
+            guard !Task.isCancelled else { return }
+            catalogState = .unavailable(AppleMusicAvailability.catalogMessage(for: error))
+        }
+    }
+
+    /// Catalog songs play in the same player, queued by store ID.
+    func playCatalog(_ songs: [Song], startAt index: Int = 0) async {
+        await playStoreIDs(songs.map(\.id.rawValue), start: songs.indices.contains(index) ? songs[index].id.rawValue : nil)
+    }
+
+    func playCatalogAlbum(_ album: Album, shuffled: Bool = false) async {
+        do {
+            let detailed = try await album.with([.tracks])
+            let ids = (detailed.tracks ?? []).map(\.id.rawValue)
+            await playStoreIDs(shuffled ? ids.shuffled() : ids, start: nil)
+        } catch {
+            alertMessage = AppleMusicAvailability.catalogMessage(for: error)
+        }
+    }
+
+    private func playStoreIDs(_ ids: [String], start: String?) async {
+        guard !ids.isEmpty else { return }
+        if let subscription = try? await MusicSubscription.current, !subscription.canPlayCatalogContent {
+            alertMessage = AppleMusicAvailability.subscriptionMessage
+            return
+        }
+        let player = ensurePlayer()
+        music?.yieldToOtherPlayer()
+        video?.stop()
+        let descriptor = MPMusicPlayerStoreQueueDescriptor(storeIDs: ids)
+        descriptor.startItemID = start
+        player.shuffleMode = .off
+        player.setQueue(with: descriptor)
+        do {
+            try await player.prepareToPlay()
+            player.play()
+        } catch {
+            alertMessage = AppleMusicAvailability.catalogMessage(for: error)
+        }
+    }
+
+    func addToLibrary(_ song: Song) async {
+        do {
+            try await MusicLibrary.shared.add(song)
+            addedToLibrary.insert(song.id)
+        } catch {
+            alertMessage = AppleMusicAvailability.catalogMessage(for: error)
+        }
+    }
+
+    func addToLibrary(_ album: Album) async {
+        do {
+            try await MusicLibrary.shared.add(album)
+            addedToLibrary.insert(album.id)
+        } catch {
+            alertMessage = AppleMusicAvailability.catalogMessage(for: error)
+        }
     }
 
     // MARK: - Artwork
