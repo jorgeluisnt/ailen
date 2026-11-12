@@ -49,6 +49,7 @@ final class AudioEQTap {
     func setBand(_ index: Int, gain: Float) { eq.setBand(index, gain: gain) }
     func setBands(_ gains: [Float]) {
         for (i, g) in gains.enumerated() where i < AudioEQ.bandCount { eq.setBand(i, gain: g) }
+        eq.setGlobalGain(EQHeadroom.preamp(frequencies: frequencies, gains: gains))
     }
     /// Switches the live tap to a parametric curve (AutoEQ profile).
     func setParametric(_ preset: ParametricEQPreset) { eq.applyParametric(preset) }

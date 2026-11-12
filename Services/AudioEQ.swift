@@ -123,6 +123,11 @@ final class AudioEQ {
         setParam(kAUNBandEQParam_Gain + AudioUnitParameterID(index), gain)
     }
 
+    /// Global gain (dB) applied after the bands; the graphic EQ's headroom.
+    func setGlobalGain(_ gain: Float) {
+        setParam(kAUNBandEQParam_GlobalGain, gain.clamped(to: -24...24))
+    }
+
     /// Bypasses the whole EQ (audio passes through unchanged) without detaching.
     func setBypass(_ bypass: Bool) {
         lock.withLockUnchecked {
@@ -164,7 +169,8 @@ final class AudioEQ {
     }
 
     /// Restores the graphic-EQ configuration after parametric mode: bell
-    /// filters at the fixed band frequencies, default bandwidth, no preamp.
+    /// filters at the fixed band frequencies, default bandwidth, and the
+    /// automatic headroom preamp for those gains.
     func applyGraphic(frequencies: [Float], gains: [Float]) {
         lock.withLockUnchecked {
             guard let au = self.au else { return }
@@ -174,11 +180,12 @@ final class AudioEQ {
                 if i < frequencies.count {
                     applyParam(au, kAUNBandEQParam_Frequency + band, frequencies[i])
                 }
-                applyParam(au, kAUNBandEQParam_Bandwidth + band, 0.5)
+                applyParam(au, kAUNBandEQParam_Bandwidth + band, EQHeadroom.graphicBandwidthOctaves)
                 applyParam(au, kAUNBandEQParam_Gain + band, i < gains.count ? gains[i] : 0)
                 applyParam(au, kAUNBandEQParam_BypassBand + band, 0)
             }
-            applyParam(au, kAUNBandEQParam_GlobalGain, 0)
+            applyParam(au, kAUNBandEQParam_GlobalGain,
+                       EQHeadroom.preamp(frequencies: frequencies, gains: gains))
         }
     }
 

@@ -410,9 +410,7 @@ final class PlayerManager: NSObject, ObservableObject {
         fetchStreamURL(for: track.id, generation: gen)
     }
 
-    /// Plays a local file. Honors the current EQ setting: EQ on routes
-    /// through the engine path (no download needed), EQ off goes
-    /// straight to the AVPlayer path.
+    /// Plays a local file through AVPlayer. EQ uses an optional processing tap.
     private func playLocal(track: Track, fileURL: URL) {
         guard FileManager.default.fileExists(atPath: fileURL.path) else {
             self.currentTrack = track
@@ -511,6 +509,12 @@ final class PlayerManager: NSObject, ObservableObject {
         handleEQOutcome(outcome)
     }
 
+    /// Directo ↔ Ecualizador. The tap is bypassed or re-engaged in place, so
+    /// playback position, the queue and the curve are untouched.
+    func setAudioMode(direct: Bool) {
+        handleEQOutcome(eq.setDirect(direct))
+    }
+
     func resetEQ() {
         _ = eq.reset()
         avPlayerPath.setEQEnabled(false)
@@ -545,11 +549,13 @@ final class PlayerManager: NSObject, ObservableObject {
     private func handleEQOutcome(_ outcome: EQApplyOutcome) {
         // EQ runs through the real-time AVPlayer tap for both streamed and
         // local tracks — live, no engine, no download, no playback restart.
+        // Graphic gains must never be pushed over an active parametric curve:
+        // they would overwrite its band gains and preamp.
         switch outcome {
         case .noChange, .stillEnabled:
-            avPlayerPath.updateEQBands(eq.bands)
+            if eq.parametric == nil { avPlayerPath.updateEQBands(eq.bands) }
         case .becameEnabled:
-            avPlayerPath.updateEQBands(eq.bands)
+            if eq.parametric == nil { avPlayerPath.updateEQBands(eq.bands) }
             avPlayerPath.setEQEnabled(true)
         case .becameDisabled:
             avPlayerPath.setEQEnabled(false)
@@ -814,6 +820,29 @@ final class PlayerManager: NSObject, ObservableObject {
         unshuffledQueue = nil
     }
 
+    /// Drops every reference to a track whose file is about to be deleted:
+    /// queue, shuffle baseline and history. If it is the current track,
+    /// playback moves to the next queued track, or stops. Call before
+    /// deleting the file so AVPlayer is no longer reading it.
+    func forget(_ track: Track) {
+        queue.removeAll { $0.id == track.id }
+        unshuffledQueue?.removeAll { $0.id == track.id }
+        playHistory.removeAll { $0.id == track.id }
+        guard currentTrack?.id == track.id else { return }
+        if !queue.isEmpty {
+            let next = queue.removeFirst()
+            unshuffledQueue?.removeAll { $0.id == next.id }
+            startPlayback(next)  // not play(): that would push the deleted track onto history
+        } else {
+            stopAllPlayback()
+            currentStreamURL = nil
+            currentTrack = nil
+            isPlaying = false
+            playbackState = .idle
+            nowPlaying.updateNowPlaying()
+        }
+    }
+
     func playNextInQueue() {
         guard !queue.isEmpty else {
             advanceWithEmptyQueue()
@@ -966,8 +995,17 @@ final class PlayerManager: NSObject, ObservableObject {
         isPlaying = false
         playbackState = .idle
         currentStreamURL = nil
-        playerError = .streamFailed(error?.localizedDescription ?? "Playback failed")
+        if currentTrack?.localFileURL != nil {
+            // AVFoundation's text ("The operation could not be completed")
+            // says nothing useful about a local file.
+            playerError = .streamFailed(Self.localPlaybackFailureMessage)
+        } else {
+            playerError = .streamFailed(error?.localizedDescription ?? "Error de reproducción")
+        }
     }
+
+    static let localPlaybackFailureMessage =
+        "No se pudo reproducir el archivo. Puede estar dañado o usar un formato o perfil que iOS no decodifica."
 
     /// Called by `AVPlayerPath`'s stall watchdog when the buffer has stayed
     /// empty past the grace period. A signed googlevideo URL can go stale or

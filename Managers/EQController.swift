@@ -8,7 +8,11 @@ final class EQController: ObservableObject {
     static let schemaVersion = 1
 
     @Published private(set) var bands: [Float]
-    @Published private(set) var isEnabled: Bool = false
+    /// "Directo": the curve is kept but not applied. Persisted.
+    @Published private(set) var isDirect: Bool = false
+    /// True when audio actually goes through the EQ: not Directo and the
+    /// curve does something (a parametric preset or a non-flat graphic curve).
+    var isEnabled: Bool { !isDirect && (parametric != nil || bands.contains { $0 != 0 }) }
     /// Active parametric curve (imported AutoEQ profile). Non-nil means the
     /// EQ is in parametric mode and the graphic `bands` are dormant — `apply`
     /// is a no-op until the preset is cleared (the UI hides the faders too).
@@ -19,6 +23,8 @@ final class EQController: ObservableObject {
     private struct PersistedState: Codable {
         let bands: [Float]
         let parametric: ParametricEQPreset?
+        /// Optional so files written before the Directo mode still decode.
+        let direct: Bool?
     }
 
     private let store: KeyValueStore
@@ -34,10 +40,10 @@ final class EQController: ObservableObject {
            state.bands.count == Self.bandCount {
             self.bands = state.bands.map { $0.clamped(to: Self.gainRange) }
             self.parametric = state.parametric
+            self.isDirect = state.direct ?? false
         } else {
             self.bands = Array(repeating: 0, count: Self.bandCount)
         }
-        self.isEnabled = parametric != nil || bands.contains(where: { $0 != 0 })
         self.debouncer = Debouncer(delay: 0.5) { [weak self] in self?.performSave() }
     }
 
@@ -52,19 +58,31 @@ final class EQController: ObservableObject {
         guard parametric == nil else { return .noChange }
         let wasEnabled = isEnabled
         let clamped = gains.map { $0.clamped(to: EQController.gainRange) }
-        let nowEnabled = clamped.contains(where: { $0 != 0 })
-
         if bands == clamped {
             return .noChange
         }
-
         bands = clamped
-        isEnabled = nowEnabled
         save()
+        return outcome(wasEnabled: wasEnabled)
+    }
 
-        if !wasEnabled && nowEnabled { return .becameEnabled }
-        if wasEnabled && !nowEnabled { return .becameDisabled }
-        return .stillEnabled
+    /// Switches between Directo and Ecualizador without touching the curve.
+    @discardableResult
+    func setDirect(_ direct: Bool) -> EQApplyOutcome {
+        guard direct != isDirect else { return .noChange }
+        let wasEnabled = isEnabled
+        isDirect = direct
+        save()
+        return outcome(wasEnabled: wasEnabled)
+    }
+
+    private func outcome(wasEnabled: Bool) -> EQApplyOutcome {
+        switch (wasEnabled, isEnabled) {
+        case (false, true): return .becameEnabled
+        case (true, false): return .becameDisabled
+        case (true, true): return .stillEnabled
+        case (false, false): return .noChange
+        }
     }
 
     @discardableResult
@@ -72,7 +90,6 @@ final class EQController: ObservableObject {
         let wasEnabled = isEnabled
         bands = Array(repeating: 0, count: EQController.bandCount)
         parametric = nil
-        isEnabled = false
         save()
         return wasEnabled
     }
@@ -87,14 +104,14 @@ final class EQController: ObservableObject {
 
     // MARK: - Parametric
 
-    /// Activates a parametric curve. The EQ is always audible with a preset
-    /// applied, so this enables if needed.
+    /// Activates a parametric curve. Choosing a profile means wanting to hear
+    /// it, so this also leaves Directo.
     @discardableResult
     func setParametric(_ preset: ParametricEQPreset) -> EQApplyOutcome {
         let wasEnabled = isEnabled
         let unchanged = parametric == preset
         parametric = preset
-        isEnabled = true
+        isDirect = false
         save()
         if unchanged && wasEnabled { return .noChange }
         return wasEnabled ? .stillEnabled : .becameEnabled
@@ -107,7 +124,6 @@ final class EQController: ObservableObject {
         guard parametric != nil else { return .noChange }
         let wasEnabled = isEnabled
         parametric = nil
-        isEnabled = bands.contains(where: { $0 != 0 })
         save()
         if wasEnabled && !isEnabled { return .becameDisabled }
         return isEnabled ? .stillEnabled : .noChange
@@ -120,7 +136,7 @@ final class EQController: ObservableObject {
     private func save() { debouncer.call() }
 
     private func performSave() {
-        let state = PersistedState(bands: bands, parametric: parametric)
+        let state = PersistedState(bands: bands, parametric: parametric, direct: isDirect)
         guard let data = try? SchemaStore.encode([state], schemaVersion: Self.schemaVersion) else { return }
         try? store.save(data)
     }
