@@ -326,7 +326,6 @@ struct PlaylistsView: View {
         Button {
             Haptics.light()
             playerManager.play(track)
-            recentlyPlayedManager.trackPlayed(track)
         } label: {
             HStack(spacing: DS.Spacing.sm) {
                 TrackThumbnail(url: track.thumbnailURL, size: 44, cornerRadius: DS.Radius.sm, tokens: tokens)
@@ -538,7 +537,6 @@ struct PlaylistsView: View {
                 let tracks = playlist.tracks
                 guard !tracks.isEmpty else { return }
                 playerManager.playSlice(tracks, startIndex: 0)
-                recentlyPlayedManager.trackPlayed(tracks[0])
                 playlistsManager.markPlayed(playlist)
             } label: {
                 Label("Reproducir", systemImage: "play.fill")

@@ -407,3 +407,15 @@ struct PlayerSheetContent: View {
         }
     }
 }
+
+/// "Editar" / "Listo" for reordering the queue. The system `EditButton`
+/// shows "Edit" because the app ships no Spanish localization bundle.
+struct QueueEditButton: View {
+    @Binding var editMode: EditMode
+
+    var body: some View {
+        Button(editMode.isEditing ? "Listo" : "Editar") {
+            withAnimation { editMode = editMode.isEditing ? .inactive : .active }
+        }
+    }
+}

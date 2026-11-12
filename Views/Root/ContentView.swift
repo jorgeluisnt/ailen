@@ -138,6 +138,14 @@ struct ContentView: View {
             bannerDismiss?.cancel()
             bannerDismiss = Task { await dismissBanner() }
         }
+        // Every track that becomes current counts as played, whatever started
+        // it (library, Home, queue, Next, remote controls). The only place
+        // plays are recorded, so stats aren't counted twice.
+        .onChange(of: playerManager.currentTrack?.id) { _ in
+            if let track = playerManager.currentTrack {
+                recentlyPlayedManager.trackPlayed(track)
+            }
+        }
         // Player sheets live at the root so they open from any screen.
         .sheet(item: $nav.presentedSheet) { PlayerSheetContent(sheet: $0) }
         .preferredColorScheme(themeManager.isDarkMode ? .dark : .light)

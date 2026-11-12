@@ -267,7 +267,6 @@ struct SearchView: View {
                     // user's own tracks), unlike YouTube results which seed
                     // a radio.
                     playerManager.playSlice(tracks, startIndex: index)
-                    recentlyPlayedManager.trackPlayed(track)
                 } label: {
                     HStack(spacing: DS.Spacing.sm) {
                         TrackThumbnail(url: track.thumbnailURL, size: 52, cornerRadius: DS.Radius.sm, tokens: tokens)
@@ -522,7 +521,6 @@ struct SearchView: View {
                         // Stay on Search: the results (and the mini player) keep
                         // the user in the flow of trying the next result.
                         playerManager.playRadio(seed: track)
-                        recentlyPlayedManager.trackPlayed(track)
                     } label: {
                         HStack(spacing: DS.Spacing.sm) {
                             TrackThumbnail(url: track.thumbnailURL, size: 52, cornerRadius: DS.Radius.sm, tokens: tokens)
@@ -685,7 +683,6 @@ struct SearchView: View {
             dismissKeyboard()
             Haptics.light()
             playerManager.playRadio(seed: track)
-            recentlyPlayedManager.trackPlayed(track)
         } label: {
             HStack(spacing: DS.Spacing.sm) {
                 TrackThumbnail(url: track.thumbnailURL, size: 56, cornerRadius: DS.Radius.sm, tokens: tokens)
@@ -717,7 +714,6 @@ struct SearchView: View {
             dismissKeyboard()
             Haptics.light()
             playerManager.playRadio(seed: track)
-            recentlyPlayedManager.trackPlayed(track)
         } label: {
             VStack(alignment: .leading, spacing: DS.Spacing.sm) {
                 TrackThumbnail(url: track.thumbnailURL, size: nil, cornerRadius: DS.Radius.md, tokens: tokens)

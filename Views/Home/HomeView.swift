@@ -10,6 +10,7 @@ struct HomeView: View {
 
     @ObservedObject private var library: LocalLibraryManager
     @StateObject private var vm: LibraryViewModel
+    @State private var randomPicks: [Track] = []
 
     private var tokens: DesignTokens { themeManager.tokens }
 
@@ -49,15 +50,29 @@ struct HomeView: View {
                         .foregroundColor(tokens.textPrimary)
                         .accessibilityAddTraits(.isHeader)
 
+                    genresSection
                     artistsSection
                     trackSection("Reproducidas recientemente", tracks: Array(recent.prefix(12)),
                                  empty: "Aún no has reproducido nada.")
-                    trackSection("Favoritos", tracks: favorites,
-                                 empty: "Marca canciones con ♥ para verlas aquí.")
+                    if favorites.isEmpty {
+                        // No favourites yet: a stable random pick from the library.
+                        trackSection("Canciones aleatorias", tracks: randomPicks,
+                                     empty: "Importa música para ver canciones aquí.",
+                                     note: "Marca canciones con ♥ para ver aquí tus favoritos.")
+                    } else {
+                        trackSection("Favoritos", tracks: favorites, empty: "")
+                    }
                 }
                 .padding(DS.Spacing.xl)
             }
         }
+        // Re-pick only when the library changes, not on every redraw.
+        .task(id: library.tracks.count) { pickRandom() }
+    }
+
+    private func pickRandom() {
+        randomPicks = library.tracks.filter { !$0.isMissing }.shuffled().prefix(12)
+            .map { $0.asPlayerTrack(fileURL: library.fileURL(for: $0)) }
     }
 
     // MARK: - Sections
@@ -83,6 +98,7 @@ struct HomeView: View {
         }
     }
 
+    /// Artists as large square cards (artwork, name, song count).
     private var artistsSection: some View {
         VStack(alignment: .leading, spacing: DS.Spacing.md) {
             header("Artistas", play: nil)
@@ -90,9 +106,11 @@ struct HomeView: View {
                 emptyText("Importa música para ver tus artistas.")
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: DS.Spacing.md) {
-                        ForEach(vm.artists.prefix(20)) { artist in
-                            artistChip(artist)
+                    LazyHStack(alignment: .top, spacing: DS.Spacing.lg) {
+                        ForEach(vm.artists.prefix(30)) { artist in
+                            Button { play(artist) } label: { artistCard(artist) }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("Reproducir \(artist.title), \(artist.subtitle)")
                         }
                     }
                 }
@@ -100,26 +118,45 @@ struct HomeView: View {
         }
     }
 
-    private func artistChip(_ artist: LibraryCollection) -> some View {
-        Button {
-            let tracks = artist.tracks.filter { !$0.isMissing }
-                .map { $0.asPlayerTrack(fileURL: library.fileURL(for: $0)) }
-            if !tracks.isEmpty { playerManager.playSlice(tracks, startIndex: 0) }
-        } label: {
-            HStack(spacing: DS.Spacing.sm) {
-                Group {
-                    if let url = artist.artworkTrack?.artworkURL {
-                        AsyncCachedImage(url: url, targetSize: 40) {
-                            ArtworkPlaceholder(tokens: tokens, cornerRadius: 20)
+    private func artistCard(_ artist: LibraryCollection) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            artwork(artist.artworkTrack?.artworkURL, size: 160, corner: 16)
+            Text(artist.title)
+                .font(DS.Typography.bodyEm)
+                .foregroundColor(tokens.textPrimary)
+                .lineLimit(1)
+            Text(artist.subtitle)
+                .font(DS.Typography.caption)
+                .foregroundColor(tokens.textSecondary)
+                .lineLimit(1)
+        }
+        .frame(width: 160, alignment: .leading)
+    }
+
+    /// Genres as glass capsules with a round cover.
+    private var genresSection: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.md) {
+            header("Géneros", play: nil)
+            if vm.genres.isEmpty {
+                emptyText("Tus géneros aparecerán aquí cuando importes música.")
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: DS.Spacing.md) {
+                        ForEach(vm.genres) { genre in
+                            genreChip(genre)
                         }
-                        .aspectRatio(contentMode: .fill)
-                    } else {
-                        ArtworkPlaceholder(tokens: tokens, cornerRadius: 20)
                     }
                 }
-                .frame(width: 40, height: 40)
-                .clipShape(Circle())
-                Text(artist.title)
+            }
+        }
+    }
+
+    private func genreChip(_ genre: LibraryCollection) -> some View {
+        Button { play(genre) } label: {
+            HStack(spacing: DS.Spacing.sm) {
+                artwork(genre.artworkTrack?.artworkURL, size: 40, corner: 20)
+                    .clipShape(Circle())
+                Text(genre.title)
                     .font(DS.Typography.bodyEm)
                     .foregroundColor(tokens.textPrimary)
                     .lineLimit(1)
@@ -130,12 +167,39 @@ struct HomeView: View {
             .glassSurface(in: Capsule(), interactive: true)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Reproducir \(artist.title)")
+        .accessibilityLabel("Reproducir \(genre.title), \(genre.subtitle)")
     }
 
-    private func trackSection(_ title: String, tracks: [Track], empty: String) -> some View {
+    private func artwork(_ url: URL?, size: CGFloat, corner: CGFloat) -> some View {
+        Group {
+            if let url {
+                AsyncCachedImage(url: url, targetSize: size) {
+                    ArtworkPlaceholder(tokens: tokens, cornerRadius: corner)
+                }
+                .aspectRatio(contentMode: .fill)
+            } else {
+                ArtworkPlaceholder(tokens: tokens, cornerRadius: corner)
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
+    }
+
+    private func play(_ collection: LibraryCollection) {
+        let tracks = collection.tracks.filter { !$0.isMissing }
+            .map { $0.asPlayerTrack(fileURL: library.fileURL(for: $0)) }
+        if !tracks.isEmpty { playerManager.playSlice(tracks, startIndex: 0) }
+    }
+
+    private func trackSection(_ title: String, tracks: [Track], empty: String,
+                              note: String? = nil) -> some View {
         VStack(alignment: .leading, spacing: DS.Spacing.md) {
             header(title, play: tracks)
+            if let note {
+                Text(note)
+                    .font(DS.Typography.caption)
+                    .foregroundColor(tokens.textSecondary)
+            }
             if tracks.isEmpty {
                 emptyText(empty)
             } else {

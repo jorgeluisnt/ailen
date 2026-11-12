@@ -48,6 +48,7 @@ struct TabletRootView: View {
         HStack(spacing: 0) {
             TabletRail(selection: Binding(get: { section }, set: { sectionRaw = $0.rawValue }))
                 .frame(width: 80)
+                .zIndex(1)
             NowPlayingPanel()
                 .frame(width: 355)
             content
@@ -78,14 +79,13 @@ struct TabletRail: View {
 
     var body: some View {
         VStack(spacing: DS.Spacing.md) {
-            // App mark.
-            Image(systemName: "waveform")
-                .font(.title2.weight(.bold))
-                .foregroundColor(.white)
+            // App logo (a copy of the app icon: iOS can't load AppIcon as an image).
+            Image("AppLogo")
+                .resizable()
                 .frame(width: 48, height: 48)
-                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(tokens.accentGradient))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .padding(.bottom, DS.Spacing.lg)
-                .accessibilityHidden(true)
+                .accessibilityLabel("Ailen")
 
             ForEach([TabletSection.home, .library, .playlists, .favorites]) { item in
                 railButton(item.icon, item.title, selected: selection == item) { selection = item }

@@ -8,6 +8,7 @@ struct QueueView: View {
 
     @State private var showSaveDialog = false
     @State private var newPlaylistName = ""
+    @State private var editMode: EditMode = .inactive
 
     private var tokens: DesignTokens { themeManager.tokens }
 
@@ -28,6 +29,7 @@ struct QueueView: View {
                     }
                 }
             }
+            .environment(\.editMode, $editMode)
             .navigationTitle("A continuación")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -37,7 +39,7 @@ struct QueueView: View {
                 }
                 if !playerManager.queue.isEmpty {
                     ToolbarItemGroup(placement: .primaryAction) {
-                        EditButton()
+                        QueueEditButton(editMode: $editMode)
                             .foregroundColor(tokens.accent)
                         Menu {
                             Button {

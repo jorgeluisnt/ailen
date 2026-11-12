@@ -159,7 +159,6 @@ struct PlaylistDetailView: View {
                 let tracks = currentPlaylist.tracks
                 guard !tracks.isEmpty else { return }
                 playerManager.playSlice(tracks, startIndex: 0)
-                recentlyPlayedManager.trackPlayed(tracks[0])
                 playlistsManager.markPlayed(currentPlaylist)
             }
 
@@ -168,7 +167,6 @@ struct PlaylistDetailView: View {
                 let tracks = currentPlaylist.tracks.shuffled()
                 guard !tracks.isEmpty else { return }
                 playerManager.playSlice(tracks, startIndex: 0)
-                recentlyPlayedManager.trackPlayed(tracks[0])
                 playlistsManager.markPlayed(currentPlaylist)
             }
         }
@@ -236,7 +234,6 @@ struct PlaylistDetailView: View {
                     let tracks = currentPlaylist.tracks
                     let idx = tracks.firstIndex(where: { $0.id == track.id }) ?? 0
                     playerManager.playSlice(tracks, startIndex: idx)
-                    recentlyPlayedManager.trackPlayed(track)
                     playlistsManager.markPlayed(currentPlaylist)
                 } label: {
                     HStack(spacing: DS.Spacing.sm) {
