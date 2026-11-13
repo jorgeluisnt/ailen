@@ -15,9 +15,11 @@ struct AriaApp: App {
     @StateObject private var eqController: EQController
     @StateObject private var localLibraryManager: LocalLibraryManager
     @StateObject private var videoLibraryManager: VideoLibraryManager
-    @StateObject private var videoPlayback = VideoPlaybackController()
     @StateObject private var appleMusic = AppleMusicService()
+    #if os(iOS)
+    @StateObject private var videoPlayback = VideoPlaybackController()
     @StateObject private var spotify = SpotifyService()
+    #endif
     @StateObject private var navigationCoordinator = NavigationCoordinator()
     @StateObject private var downloadManager = DownloadManager()
     @StateObject private var smartPlaylistsManager = SmartPlaylistsManager(store: JSONFileStore(filename: "smart_playlists.json"))
@@ -26,6 +28,7 @@ struct AriaApp: App {
     @StateObject private var audioOutputMonitor = AudioOutputMonitor()
 
     init() {
+        #if os(iOS)
         do {
             // A music player should take over audio, not coexist: drop
             // .mixWithOthers so starting Aria interrupts/ducks other apps, and
@@ -38,6 +41,7 @@ struct AriaApp: App {
         } catch {
             log.error("Failed to set audio session category: \(error.localizedDescription, privacy: .public)")
         }
+        #endif
         let settings = SettingsManager()
         let eq = EQController(store: JSONFileStore(filename: "eq_settings.json"))
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -76,6 +80,33 @@ struct AriaApp: App {
     }
 
     var body: some Scene {
+        #if os(macOS)
+        WindowGroup {
+            MacRootView()
+                .environmentObject(appleMusic)
+                .environmentObject(playerManager)
+                .environmentObject(playerManager.clock)
+                .environmentObject(favoritesManager)
+                .environmentObject(playlistsManager)
+                .environmentObject(recentlyPlayedManager)
+                .environmentObject(settingsManager)
+                .environmentObject(themeManager)
+                .environmentObject(eqController)
+                .environmentObject(localLibraryManager)
+                .environmentObject(videoLibraryManager)
+                .environmentObject(navigationCoordinator)
+                .environmentObject(downloadManager)
+                .environmentObject(smartPlaylistsManager)
+                .environmentObject(savedEQProfilesManager)
+                .environmentObject(librarySearchManager)
+                .environmentObject(audioOutputMonitor)
+        }
+        .commands { MacPlaybackCommands(player: playerManager) }
+        Settings {
+            MacSettingsView()
+                .environmentObject(audioOutputMonitor)
+        }
+        #else
         WindowGroup {
             ContentView(initialTab: initialTab)
                 .environmentObject(playerManager)
@@ -98,8 +129,10 @@ struct AriaApp: App {
                 .environmentObject(librarySearchManager)
                 .environmentObject(audioOutputMonitor)
         }
+        #endif
     }
 
+    #if os(iOS)
     private var initialTab: AppTab {
         switch settingsManager.defaultStartTab {
         case .playlists: return .playlists
@@ -109,4 +142,5 @@ struct AriaApp: App {
         case .library:   return .library
         }
     }
+    #endif
 }

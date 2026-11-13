@@ -42,13 +42,15 @@ SIM ?= $(shell xcrun simctl list devices available 2>/dev/null \
 SIGNING := DEVELOPMENT_TEAM=$(TEAM) PRODUCT_BUNDLE_IDENTIFIER=$(BUNDLE_ID) TARGETED_DEVICE_FAMILY=$(DEVICE_FAMILY)
 APP     := $(BUILD)/Build/Products/Release-iphoneos/$(SCHEME).app
 
-.PHONY: help doctor sim install test check clean
+.PHONY: help doctor sim install install-mac test test-mac check clean
 
 help:
 	@echo "Ailen — build it yourself"
 	@echo
 	@echo "  make sim       build and run in the iOS Simulator (no Apple ID needed)"
 	@echo "  make install   build and install on your connected iPhone"
+	@echo "  make install-mac  build the native macOS app into /Applications"
+	@echo "  make test-mac  run the unit tests natively on this Mac"
 	@echo "  make test      run the test suite"
 	@echo "  make check     compile app and tests without a simulator"
 	@echo "  make doctor    check what you have and what you're missing"
@@ -137,3 +139,21 @@ check:
 
 clean:
 	rm -rf "$(BUILD)"
+
+# Native macOS build, installed to /Applications (signed with your team).
+install-mac:
+	xcodebuild -project "$(PROJECT)" -scheme "$(SCHEME)" -configuration Release \
+		-destination "platform=macOS,arch=arm64" -derivedDataPath "$(BUILD)-macos" \
+		-allowProvisioningUpdates -allowProvisioningDeviceRegistration \
+		DEVELOPMENT_TEAM=$(TEAM) PRODUCT_BUNDLE_IDENTIFIER=$(BUNDLE_ID) build
+	-pkill -x Ailen; sleep 1
+	rm -rf /Applications/Ailen.app
+	ditto "$(BUILD)-macos/Build/Products/Release/Ailen.app" /Applications/Ailen.app
+	open /Applications/Ailen.app
+	@echo "Installed natively to /Applications/Ailen.app"
+
+# Unit tests run natively on this Mac (no iOS simulator runtime needed).
+# iOS-only test files are excluded for macOS in the test target settings.
+test-mac:
+	xcodebuild test -project "$(PROJECT)" -scheme "$(TESTS)" \
+		-destination "platform=macOS,arch=arm64" -derivedDataPath "$(BUILD)-macos" CODE_SIGNING_ALLOWED=NO

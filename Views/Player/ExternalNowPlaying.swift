@@ -1,5 +1,7 @@
 import SwiftUI
-import UIKit
+#if os(macOS)
+import MusicKit
+#endif
 
 /// What an external player (Apple Music, Spotify) is playing, plus how to
 /// control it. Built by each service; drawn by the shared views below, so
@@ -10,7 +12,7 @@ struct ExternalNowPlaying {
     let source: String
     let title: String
     let artist: String
-    let artwork: UIImage?
+    let artwork: PlatformImage?
     let isPlaying: Bool
     let shuffleOn: Bool
     let repeatState: Repeat
@@ -24,7 +26,12 @@ struct ExternalNowPlaying {
     let toggleShuffle: () -> Void
     let cycleRepeat: () -> Void
     let seek: (TimeInterval) -> Void
+    #if os(macOS)
+    /// MusicKit artwork (library artwork has no plain URL/image on the Mac).
+    var musicKitArtwork: Artwork? = nil
+    #endif
 
+    #if os(iOS)
     /// The external source that was started last, if any.
     @MainActor
     static func active(appleMusic: AppleMusicService, spotify: SpotifyService) -> ExternalNowPlaying? {
@@ -32,6 +39,12 @@ struct ExternalNowPlaying {
         if appleMusic.isActiveSource, let model = appleMusic.nowPlayingModel { return model }
         return nil
     }
+    #else
+    @MainActor
+    static func active(appleMusic: AppleMusicService) -> ExternalNowPlaying? {
+        appleMusic.isActiveSource ? appleMusic.nowPlayingModel : nil
+    }
+    #endif
 }
 
 /// Full Now Playing for an external source (iPad panel when `compact`).
@@ -44,13 +57,17 @@ struct ExternalNowPlayingView: View {
 
     private var artworkSide: CGFloat {
         if compact { return 220 }
+        #if os(iOS)
         return horizontalSizeClass == .regular ? 420 : min(290, UIScreen.main.bounds.height * 0.34)
+        #else
+        return 320
+        #endif
     }
 
     var body: some View {
         let tokens = themeManager.tokens
         VStack(spacing: compact ? DS.Spacing.md : DS.Spacing.lg) {
-            ExternalArtwork(image: model.artwork, corner: compact ? 18 : 20)
+            ExternalArtwork(model: model, corner: compact ? 18 : 20)
                 .frame(width: artworkSide, height: artworkSide)
                 .shadow(color: .black.opacity(0.35), radius: 18, y: 8)
 
@@ -188,7 +205,7 @@ struct ExternalNowPlayingBar: View {
         HStack(spacing: DS.Spacing.md) {
             Button(action: onTap) {
                 HStack(spacing: DS.Spacing.md) {
-                    ExternalArtwork(image: model.artwork, corner: 8).frame(width: 44, height: 44)
+                    ExternalArtwork(model: model, corner: 8).frame(width: 44, height: 44)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(model.title)
                             .font(DS.Typography.bodyEm)
@@ -233,18 +250,28 @@ struct ExternalNowPlayingBar: View {
 /// Artwork image or the placeholder.
 struct ExternalArtwork: View {
     @EnvironmentObject private var themeManager: ThemeManager
-    let image: UIImage?
+    let model: ExternalNowPlaying
     let corner: CGFloat
 
     var body: some View {
         Color.clear
             .aspectRatio(1, contentMode: .fit)
             .overlay {
-                if let image {
-                    Image(uiImage: image).resizable().aspectRatio(contentMode: .fill)
+                #if os(macOS)
+                if let artwork = model.musicKitArtwork {
+                    GeometryReader { geo in
+                        ArtworkImage(artwork, width: geo.size.width, height: geo.size.height)
+                    }
                 } else {
                     ArtworkPlaceholder(tokens: themeManager.tokens, cornerRadius: corner)
                 }
+                #else
+                if let image = model.artwork {
+                    Image(platformImage: image).resizable().aspectRatio(contentMode: .fill)
+                } else {
+                    ArtworkPlaceholder(tokens: themeManager.tokens, cornerRadius: corner)
+                }
+                #endif
             }
             .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
             .accessibilityHidden(true)

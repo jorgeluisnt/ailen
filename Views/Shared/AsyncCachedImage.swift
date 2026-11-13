@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 import ImageIO
 
 /// In-memory LRU cache for downloaded track artwork. Keys are the source
@@ -29,7 +28,7 @@ struct ImageCacheKey: Hashable {
 final class ImageMemoryCache {
     static let shared = ImageMemoryCache()
 
-    private let cache = NSCache<NSString, UIImage>()
+    private let cache = NSCache<NSString, PlatformImage>()
 
     private init() {
         cache.countLimit = 200
@@ -40,11 +39,11 @@ final class ImageMemoryCache {
         "\(key.url.absoluteString)#\(key.pixelBucket)" as NSString
     }
 
-    func image(for key: ImageCacheKey) -> UIImage? {
+    func image(for key: ImageCacheKey) -> PlatformImage? {
         cache.object(forKey: nsKey(for: key))
     }
 
-    func store(_ image: UIImage, for key: ImageCacheKey) {
+    func store(_ image: PlatformImage, for key: ImageCacheKey) {
         let cost = Int(image.size.width * image.size.height * 4)
         cache.setObject(image, forKey: nsKey(for: key), cost: cost)
     }
@@ -75,7 +74,7 @@ struct AsyncCachedImage<Placeholder: View>: View {
     var targetSize: CGFloat
     @ViewBuilder let placeholder: () -> Placeholder
 
-    @State private var image: UIImage?
+    @State private var image: PlatformImage?
 
     init(
         url: URL?,
@@ -110,7 +109,7 @@ struct AsyncCachedImage<Placeholder: View>: View {
         GeometryReader { proxy in
             ZStack {
                 if let image {
-                    Image(uiImage: image)
+                    Image(platformImage: image)
                         .resizable()
                         .scaledToFill()
                         .transition(.opacity.animation(.easeIn(duration: 0.18)))
@@ -142,7 +141,7 @@ struct AsyncCachedImage<Placeholder: View>: View {
         let urls = candidates
         guard !urls.isEmpty else { image = nil; return }
 
-        let screenScale = await MainActor.run { UIScreen.main.scale }
+        let screenScale = await MainActor.run { platformScreenScale }
         let targetPixelSize = targetSize * screenScale
 
         for candidate in urls {
@@ -172,7 +171,7 @@ struct AsyncCachedImage<Placeholder: View>: View {
     /// `maxPixelSize` on its longest side, using ImageIO's thumbnail
     /// path so the full-resolution image is never fully decoded into
     /// memory. Pure function (no shared state) so it's directly testable.
-    static func downsampledImage(data: Data, maxPixelSize: CGFloat) -> UIImage? {
+    static func downsampledImage(data: Data, maxPixelSize: CGFloat) -> PlatformImage? {
         let sourceOptions: [CFString: Any] = [
             kCGImageSourceShouldCache: false
         ]
@@ -191,8 +190,8 @@ struct AsyncCachedImage<Placeholder: View>: View {
             // Fall back to a full decode if ImageIO couldn't produce a
             // thumbnail (e.g. malformed/unsupported source) so we don't
             // regress correctness for the sake of memory savings.
-            return UIImage(data: data)
+            return PlatformImage(data: data)
         }
-        return UIImage(cgImage: cgImage)
+        return PlatformImage(cgImage: cgImage)
     }
 }

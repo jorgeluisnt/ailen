@@ -213,3 +213,16 @@ final class SettingsManager: ObservableObject {
         save()
     }
 }
+
+/// What the screen does while music plays (iOS only; see ScreenAwakeController).
+enum ScreenWhilePlaying: String, CaseIterable {
+    case normal, keepOn, keepOnDim
+
+    var displayName: String {
+        switch self {
+        case .normal: return "Normal"
+        case .keepOn: return "Mantener encendida"
+        case .keepOnDim: return "Encendida y atenuar"
+        }
+    }
+}

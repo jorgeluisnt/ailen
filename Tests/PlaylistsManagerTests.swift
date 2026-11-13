@@ -87,6 +87,7 @@ final class PlaylistsManagerTests: XCTestCase {
         XCTAssertEqual(manager.playlists.first?.tracks.count, 2)
     }
 
+    #if os(iOS)  // SearchView is iOS-only
     /// The Search screen's "Save as playlist" action: creation goes through
     /// `create(name:tracks:)` with the active library query as the default
     /// name (falling back when empty). Pins the action itself — its on-screen
@@ -105,6 +106,7 @@ final class PlaylistsManagerTests: XCTestCase {
         XCTAssertEqual(p.name, "mellow late-night guitar")
         XCTAssertEqual(manager.playlists.first?.tracks.map(\.id), ["yt1", "yt2"])
     }
+    #endif
 
     func testMoveTrackReorders() {
         let p = manager.create(name: "P")

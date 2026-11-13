@@ -8,7 +8,9 @@ struct QueueView: View {
 
     @State private var showSaveDialog = false
     @State private var newPlaylistName = ""
+    #if os(iOS)
     @State private var editMode: EditMode = .inactive
+    #endif
 
     private var tokens: DesignTokens { themeManager.tokens }
 
@@ -29,18 +31,24 @@ struct QueueView: View {
                     }
                 }
             }
+            #if os(iOS)
             .environment(\.editMode, $editMode)
+            #endif
             .navigationTitle("A continuación")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                #if os(iOS)
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Listo") { dismiss() }
                         .foregroundColor(tokens.accent)
                 }
+                #endif
                 if !playerManager.queue.isEmpty {
                     ToolbarItemGroup(placement: .primaryAction) {
+                        #if os(iOS)
                         QueueEditButton(editMode: $editMode)
                             .foregroundColor(tokens.accent)
+                        #endif
                         Menu {
                             Button {
                                 newPlaylistName = ""

@@ -9,8 +9,10 @@ struct MoreView: View {
     @EnvironmentObject private var themeManager: ThemeManager
     @EnvironmentObject private var localLibraryManager: LocalLibraryManager
     @EnvironmentObject private var videoLibraryManager: VideoLibraryManager
+    #if os(iOS)
     @EnvironmentObject private var videoPlayback: VideoPlaybackController
     @EnvironmentObject private var spotify: SpotifyService
+    #endif
 
     @State private var showClearLibraryAlert = false
     @State private var showClearVideosAlert = false
@@ -33,6 +35,12 @@ struct MoreView: View {
                     VStack(spacing: DS.Spacing.xl) {
                         heroHeader
                         settingsSection
+                        #if os(macOS)
+                        MoreCard(title: "Salida de audio", tokens: tokens) {
+                            MacOutputControls()
+                                .padding(DS.Spacing.md)
+                        }
+                        #endif
                         advancedSection
                         extrasSection
                         versionFooter
@@ -70,8 +78,13 @@ struct MoreView: View {
                 clearLibrary()
             }
         } message: {
+            #if os(macOS)
+            Text("Se quitarán de Ailen \(LibraryViewModel.songCount(localLibraryManager.tracks.count)), con sus portadas, y de Favoritos, listas, cola e historial. Las listas se conservan. Los archivos de música de tu Mac no se borran.")
+            #else
             Text("Se borrarán de este dispositivo \(LibraryViewModel.songCount(localLibraryManager.tracks.count)) importadas, con sus portadas, y se quitarán de Favoritos, listas, cola e historial. Las listas se conservan. Tus archivos originales en la app Archivos no se tocan. Esta acción no se puede deshacer.")
+            #endif
         }
+        #if os(iOS)
         .alert("Quitar todos los videos", isPresented: $showClearVideosAlert) {
             Button("Cancelar", role: .cancel) {}
             Button("Quitar todo", role: .destructive) {
@@ -82,6 +95,7 @@ struct MoreView: View {
         } message: {
             Text("Se quitarán de Ailen \(videoLibraryManager.videos.count) videos y las carpetas enlazadas. Los archivos originales no se borran; siguen en la app Archivos.")
         }
+        #endif
         .alert("Borrar todos los favoritos", isPresented: $showClearFavoritesAlert) {
             Button("Cancelar", role: .cancel) {}
             Button("Borrar todo", role: .destructive) {
@@ -169,6 +183,8 @@ struct MoreView: View {
                 .padding(.horizontal, DS.Spacing.md)
                 .padding(.vertical, DS.Spacing.md)
 
+                // Screen-awake, Apple Music and Spotify are iOS-only.
+                #if os(iOS)
                 Divider().background(tokens.hairline).padding(.leading, 56)
 
                 HStack(spacing: DS.Spacing.md) {
@@ -197,6 +213,8 @@ struct MoreView: View {
                 .padding(.horizontal, DS.Spacing.md)
                 .padding(.vertical, DS.Spacing.md)
 
+                #endif
+
                 Divider().background(tokens.hairline).padding(.leading, 56)
 
                 HStack(spacing: DS.Spacing.md) {
@@ -222,14 +240,17 @@ struct MoreView: View {
                 .padding(.horizontal, DS.Spacing.md)
                 .padding(.vertical, DS.Spacing.md)
 
+                #if os(iOS)
                 Divider().background(tokens.hairline).padding(.leading, 56)
 
                 spotifySettings
+                #endif
 
             }
         }
     }
 
+    #if os(iOS)  // server config (streaming backend) is hidden; iOS only
     // MARK: - Backend
 
     /// Server URL + API key overrides. The app is a client for a self-hosted
@@ -452,6 +473,8 @@ struct MoreView: View {
         }
     }
 
+    #endif
+
     // MARK: - Advanced
 
     private var advancedSection: some View {
@@ -478,6 +501,7 @@ struct MoreView: View {
 
                 Divider().background(tokens.hairline).padding(.leading, 56)
 
+                #if os(iOS)
                 Button {
                     Haptics.warning()
                     showClearVideosAlert = true
@@ -488,6 +512,7 @@ struct MoreView: View {
                 .disabled(videoLibraryManager.videos.isEmpty)
 
                 Divider().background(tokens.hairline).padding(.leading, 56)
+                #endif
 
                 Button {
                     Haptics.warning()
@@ -600,6 +625,7 @@ struct MoreView: View {
         }
     }
 
+    #if os(iOS)
     /// Spotify: on/off, the user's Client ID and how to get one.
     private var spotifySettings: some View {
         VStack(alignment: .leading, spacing: DS.Spacing.sm) {
@@ -660,6 +686,7 @@ struct MoreView: View {
         .padding(.horizontal, DS.Spacing.md)
         .padding(.vertical, DS.Spacing.md)
     }
+    #endif
 
     private var screenModeExplanation: String {
         switch settingsManager.screenWhilePlaying {

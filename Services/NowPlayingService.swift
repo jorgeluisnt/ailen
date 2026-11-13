@@ -1,7 +1,11 @@
 import Foundation
 import AVFoundation
 import MediaPlayer
+#if os(macOS)
+import AppKit
+#else
 import UIKit
+#endif
 import os.log
 
 private let log = Logger(subsystem: "com.aria.music", category: "NowPlayingService")
@@ -91,7 +95,7 @@ final class NowPlayingService {
             } else {
                 data = (try? await self.urlSession.data(from: url))?.0
             }
-            guard let data, let img = UIImage(data: data) else { return }
+            guard let data, let img = PlatformImage(data: data) else { return }
             let art = MPMediaItemArtwork(boundsSize: img.size) { requestedSize in
                 self.downscaled(img, to: requestedSize)
             }
@@ -160,6 +164,7 @@ final class NowPlayingService {
         // a video or Apple Music had them (no-op when already registered).
         configureRemoteCommands()
         Task(priority: .userInitiated) {
+            #if os(iOS)
             let s = AVAudioSession.sharedInstance()
             do {
                 try s.setCategory(.playback, mode: .default,
@@ -170,17 +175,30 @@ final class NowPlayingService {
             } catch {
                 log.error("Audio session activation failed: \(error.localizedDescription, privacy: .public)")
             }
+            #else
+            // macOS has no audio session; output is always "active".
+            NotificationCenter.default.post(name: .ariaAudioSessionActivated, object: nil)
+            #endif
         }
     }
 
     // MARK: - Internal
 
-    private func downscaled(_ image: UIImage, to size: CGSize) -> UIImage {
+    private func downscaled(_ image: PlatformImage, to size: CGSize) -> PlatformImage {
         guard size.width > 0, size.height > 0 else { return image }
+        #if os(iOS)
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
         return UIGraphicsImageRenderer(size: size, format: format).image { _ in
             image.draw(in: CGRect(origin: .zero, size: size))
         }
+        #else
+        // AppKit draws lazily at whatever size Now Playing asks for.
+        return NSImage(size: size, flipped: false) { rect in
+            image.draw(in: rect)
+            return true
+        }
+        #endif
     }
+
 }
