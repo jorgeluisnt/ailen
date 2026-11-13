@@ -8,6 +8,8 @@ struct LibraryView: View {
     @EnvironmentObject private var playlistsManager: PlaylistsManager
     @EnvironmentObject private var nav: NavigationCoordinator
     @EnvironmentObject private var downloadManager: DownloadManager
+    @EnvironmentObject private var favoritesManager: FavoritesManager
+    @EnvironmentObject private var recentlyPlayedManager: RecentlyPlayedManager
 
     /// One `.fileImporter` for all three import kinds. Stacking three of
     /// them on the same view is a SwiftUI trap: only the last one presents,
@@ -19,7 +21,18 @@ struct LibraryView: View {
     @State private var importError: String?
     @State private var importProgress: FolderImporter.Progress?
     @State private var importSummary: String?
-    @State private var addToPlaylistTrack: LocalTrack?
+    @State private var addToPlaylistTracks: [LocalTrack]?
+    /// Multi-select mode. Actions apply to `selected ∩` the list on screen,
+    /// in on-screen order.
+    @State private var isSelecting = false
+    @State private var selected: Set<UUID> = []
+    @State private var pendingRemoval: PendingRemoval?
+    @State private var removalError: String?
+
+    private struct PendingRemoval {
+        let tracks: [LocalTrack]
+        let fromDisk: Bool
+    }
     @State private var selectedTab: LibraryTab = .offlineTracks
     @Namespace private var tabIndicator
 
@@ -89,56 +102,12 @@ struct LibraryView: View {
             .onChange(of: vm.groupBy) { newValue in
                 groupByRaw = newValue.rawValue
             }
+            .onChange(of: scopeRaw) { _ in endSelection() }
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        playActiveTab()
-                    } label: {
-                        Image(systemName: "play.fill")
-                    }
-                    .disabled(activeTabIsEmpty)
-                    .accessibilityLabel("Reproducir todo")
-                }
-                if selectedTab == .offlineTracks && scope.wrappedValue == .songs {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Menu {
-                            Picker("Ordenar por", selection: $vm.sortOrder) {
-                                ForEach(LibrarySortOrder.allCases) { order in
-                                    Text(order.displayName).tag(order)
-                                }
-                            }
-                            Picker("Agrupar por", selection: $vm.groupBy) {
-                                ForEach(LibraryGroupBy.allCases) { group in
-                                    Text(group.displayName).tag(group)
-                                }
-                            }
-                        } label: {
-                            Image(systemName: "line.3.horizontal.decrease")
-                        }
-                        .accessibilityLabel("Opciones de orden y agrupación")
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        Button {
-                            beginImport(.files)
-                        } label: {
-                            Label("Importar archivos…", systemImage: "doc.badge.plus")
-                        }
-                        Button {
-                            beginImport(.folder)
-                        } label: {
-                            Label("Importar carpeta…", systemImage: "folder.badge.plus")
-                        }
-                        Button {
-                            beginImport(.m3u)
-                        } label: {
-                            Label("Importar lista M3U…", systemImage: "list.bullet.rectangle")
-                        }
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                    .accessibilityLabel("Importar audio")
+                if isSelecting {
+                    selectionToolbar(rootSelectableTracks)
+                } else {
+                    normalToolbar
                 }
             }
         }
@@ -181,8 +150,35 @@ struct LibraryView: View {
         } message: {
             Text(importError ?? "")
         }
-        .sheet(item: $addToPlaylistTrack) { track in
-            addToPlaylistSheet(for: track)
+        .sheet(isPresented: Binding(get: { addToPlaylistTracks != nil },
+                                    set: { if !$0 { addToPlaylistTracks = nil } })) {
+            AddToPlaylistSheet(tracks: (addToPlaylistTracks ?? [])
+                .map { $0.asPlayerTrack(fileURL: libraryManager.fileURL(for: $0)) }) {
+                // Done or cancelled: either way the selection has served its purpose.
+                addToPlaylistTracks = nil
+                endSelection()
+            }
+        }
+        .confirmationDialog(
+            pendingRemoval.map { $0.fromDisk ? "¿Eliminar del disco?" : "¿Eliminar de la biblioteca?" } ?? "",
+            isPresented: Binding(get: { pendingRemoval != nil }, set: { if !$0 { pendingRemoval = nil } }),
+            titleVisibility: .visible,
+            presenting: pendingRemoval
+        ) { removal in
+            Button(removal.fromDisk ? "Eliminar del disco" : "Eliminar de la biblioteca", role: .destructive) {
+                performRemoval(removal)
+            }
+            Button("Cancelar", role: .cancel) {}
+        } message: { removal in
+            Text(removalMessage(removal))
+        }
+        .alert(
+            "No se pudo eliminar",
+            isPresented: Binding(get: { removalError != nil }, set: { if !$0 { removalError = nil } })
+        ) {
+            Button("Aceptar", role: .cancel) { removalError = nil }
+        } message: {
+            Text(removalError ?? "")
         }
         .sheet(item: $nav.missingRepairTrack) { track in
             MissingTrackRepairSheet(
@@ -195,7 +191,8 @@ struct LibraryView: View {
                     }
                 },
                 onRemove: {
-                    libraryManager.remove(track)
+                    libraryManager.purge([track], fromDisk: false, player: playerManager, favorites: favoritesManager,
+                                         playlists: playlistsManager, recents: recentlyPlayedManager)
                 },
                 onDismiss: { nav.missingRepairTrack = nil }
             )
@@ -205,59 +202,192 @@ struct LibraryView: View {
         }
     }
 
-    @ViewBuilder
-    private func addToPlaylistSheet(for track: LocalTrack) -> some View {
-        NavigationStack {
-            Group {
-                if playlistsManager.playlists.isEmpty {
-                    VStack(spacing: 16) {
-                        Image(systemName: "music.note.list")
-                            .font(.system(size: 40))
-                            .foregroundColor(.secondary)
-                        Text("No hay listas")
-                            .font(.title3)
-                            .fontWeight(.semibold)
-                            .foregroundColor(tokens.textPrimary)
-                        Text("Primero crea una lista desde la pestaña Listas")
-                            .font(.subheadline)
-                            .foregroundColor(tokens.textSecondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 32)
-                    }
-                } else {
-                    List {
-                        ForEach(playlistsManager.playlists) { playlist in
-                            Button {
-                                let asTrack = track.asPlayerTrack(fileURL: libraryManager.fileURL(for: track))
-                                playlistsManager.addTrack(asTrack, to: playlist)
-                                addToPlaylistTrack = nil
-                            } label: {
-                                HStack {
-                                    VStack(alignment: .leading) {
-                                        Text(playlist.name)
-                                            .font(.body)
-                                            .foregroundColor(tokens.textPrimary)
-                                        Text("\(playlist.tracks.count) \(playlist.tracks.count == 1 ? "canción" : "canciones")")
-                                            .font(.caption)
-                                            .foregroundColor(tokens.textSecondary)
-                                    }
-                                    Spacer()
-                                    Image(systemName: "plus.circle")
-                                        .foregroundColor(tokens.accent)
-                                }
-                            }
+    @ToolbarContentBuilder
+    private var normalToolbar: some ToolbarContent {
+        ToolbarItem(placement: .topBarLeading) {
+            Button {
+                playActiveTab()
+            } label: {
+                Image(systemName: "play.fill")
+            }
+            .disabled(activeTabIsEmpty)
+            .accessibilityLabel("Reproducir todo")
+        }
+        if selectedTab == .offlineTracks && scope.wrappedValue == .songs {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Picker("Ordenar por", selection: $vm.sortOrder) {
+                        ForEach(LibrarySortOrder.allCases) { order in
+                            Text(order.displayName).tag(order)
                         }
                     }
+                    Picker("Agrupar por", selection: $vm.groupBy) {
+                        ForEach(LibraryGroupBy.allCases) { group in
+                            Text(group.displayName).tag(group)
+                        }
+                    }
+                } label: {
+                    Image(systemName: "line.3.horizontal.decrease")
                 }
-            }
-            .navigationTitle("Añadir a una lista")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancelar") { addToPlaylistTrack = nil }
-                }
+                .accessibilityLabel("Opciones de orden y agrupación")
             }
         }
+        ToolbarItem(placement: .topBarTrailing) {
+            Menu {
+                Button {
+                    beginImport(.files)
+                } label: {
+                    Label("Importar archivos…", systemImage: "doc.badge.plus")
+                }
+                Button {
+                    beginImport(.folder)
+                } label: {
+                    Label("Importar carpeta…", systemImage: "folder.badge.plus")
+                }
+                Button {
+                    beginImport(.m3u)
+                } label: {
+                    Label("Importar lista M3U…", systemImage: "list.bullet.rectangle")
+                }
+            } label: {
+                Image(systemName: "plus")
+            }
+            .accessibilityLabel("Importar audio")
+        }
+
+        if !rootSelectableTracks.isEmpty {
+            ToolbarItem(placement: .topBarTrailing) {
+                selectButton
+            }
+        }
+    }
+
+    private var selectButton: some View {
+        Button {
+            selected = []
+            isSelecting = true
+        } label: {
+            Image(systemName: "checkmark.circle")
+        }
+        .accessibilityLabel("Seleccionar canciones")
+    }
+
+    /// Tracks the root screen's "Seleccionar" acts on; empty for the grid
+    /// scopes (albums/artists), whose songs are selected inside the detail.
+    private var rootSelectableTracks: [LocalTrack] {
+        switch scope.wrappedValue {
+        case .songs: return vm.filteredAndSortedTracks
+        case .genres: return (vm.genres.first(where: { $0.id == selectedGenre }) ?? vm.genres.first)?.tracks ?? []
+        case .folders: return LibraryViewModel.folderContents(vm.filteredAndSortedTracks, at: []).tracks
+        case .albums, .artists: return []
+        }
+    }
+
+    /// Toolbar for pushed screens (album/artist detail, subfolders).
+    @ToolbarContentBuilder
+    private func detailToolbar(_ list: [LocalTrack]) -> some ToolbarContent {
+        if isSelecting {
+            selectionToolbar(list)
+        } else if !list.isEmpty {
+            ToolbarItem(placement: .topBarTrailing) { selectButton }
+        }
+    }
+
+    @ToolbarContentBuilder
+    private func selectionToolbar(_ list: [LocalTrack]) -> some ToolbarContent {
+        let chosen = list.filter { selected.contains($0.id) }
+        let all = !list.isEmpty && chosen.count == list.count
+        ToolbarItem(placement: .topBarLeading) {
+            Button(all ? "Ninguna" : "Todas") {
+                Haptics.selection()
+                selected = all ? [] : Set(list.map(\.id))
+            }
+            .accessibilityLabel(all ? "Deseleccionar todas" : "Seleccionar todas")
+        }
+        ToolbarItem(placement: .principal) {
+            Text(chosen.isEmpty ? "Seleccionar" : "\(LibraryViewModel.songCount(chosen.count))")
+                .font(.headline)
+                .foregroundColor(tokens.textPrimary)
+        }
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            Menu { bulkActions(chosen) } label: {
+                Image(systemName: "ellipsis.circle")
+            }
+            .disabled(chosen.isEmpty)
+            .accessibilityLabel("Acciones para la selección")
+            Button("Listo") { endSelection() }
+                .fontWeight(.semibold)
+        }
+    }
+
+    /// Same actions as a row's menu, applied to every selected track.
+    @ViewBuilder
+    private func bulkActions(_ tracks: [LocalTrack]) -> some View {
+        Button {
+            playCollection(tracks, shuffled: false)
+            endSelection()
+        } label: {
+            Label("Reproducir", systemImage: "play.fill")
+        }
+        Button {
+            enqueueLocal(tracks, playNext: true)
+            endSelection()
+        } label: {
+            Label("Reproducir a continuación", systemImage: "text.line.first.and.arrowtriangle.forward")
+        }
+        Button {
+            enqueueLocal(tracks, playNext: false)
+            endSelection()
+        } label: {
+            Label("Añadir a la cola", systemImage: "text.badge.plus")
+        }
+        Button {
+            addToPlaylistTracks = tracks
+        } label: {
+            Label("Añadir a una lista", systemImage: "text.badge.plus")
+        }
+        Divider()
+        Button(role: .destructive) {
+            pendingRemoval = PendingRemoval(tracks: tracks, fromDisk: false)
+        } label: {
+            Label("Eliminar de la biblioteca", systemImage: "trash")
+        }
+        Button(role: .destructive) {
+            pendingRemoval = PendingRemoval(tracks: tracks, fromDisk: true)
+        } label: {
+            Label("Eliminar del disco", systemImage: "xmark.bin")
+        }
+    }
+
+    private func endSelection() {
+        isSelecting = false
+        selected = []
+    }
+
+    private func performRemoval(_ removal: PendingRemoval) {
+        Haptics.warning()
+        let failed = libraryManager.purge(removal.tracks, fromDisk: removal.fromDisk,
+                                          player: playerManager, favorites: favoritesManager,
+                                          playlists: playlistsManager, recents: recentlyPlayedManager)
+        if !failed.isEmpty {
+            let names = failed.prefix(5).joined(separator: "\n")
+                + (failed.count > 5 ? "\n…y \(failed.count - 5) más" : "")
+            removalError = "No se pudo borrar el archivo original de \(LibraryViewModel.songCount(failed.count)); siguen en la biblioteca. Las canciones importadas antes de esta versión no guardan la referencia al original: bórralo desde la app Archivos.\n\n\(names)"
+        }
+        endSelection()
+    }
+
+    private func removalMessage(_ removal: PendingRemoval) -> String {
+        let count = LibraryViewModel.songCount(removal.tracks.count)
+        #if os(macOS)
+        return removal.fromDisk
+            ? "Se moverá a la Papelera el archivo de \(count) y se quitarán de la biblioteca, Favoritos y listas."
+            : "Se quitarán \(count) de la biblioteca, Favoritos y listas. Los archivos de tu Mac no se borran."
+        #else
+        return removal.fromDisk
+            ? "Se borrará de la app Archivos el archivo original de \(count) y se quitarán de la biblioteca, Favoritos y listas. Esta acción no se puede deshacer."
+            : "Se quitarán \(count) de la biblioteca, Favoritos y listas, y se borrará su copia en Ailen. Tus archivos originales en la app Archivos no se tocan."
+        #endif
     }
 
     @ViewBuilder
@@ -391,10 +521,12 @@ struct LibraryView: View {
                     isCurrentTrack: isCurrentTrack,
                     isPlaying: playerManager.isPlaying,
                     onPlay: { playOrRepair($0, in: list) },
-                    onPlayNext: { enqueueLocal($0, playNext: true) },
-                    onAddToQueue: { enqueueLocal($0, playNext: false) },
-                    onAddToPlaylist: { addToPlaylistTrack = $0 },
-                    onDelete: { libraryManager.remove($0) }
+                    onPlayNext: { enqueueLocal([$0], playNext: true) },
+                    onAddToQueue: { enqueueLocal([$0], playNext: false) },
+                    onAddToPlaylist: { addToPlaylistTracks = [$0] },
+                    onDelete: { pendingRemoval = PendingRemoval(tracks: [$0], fromDisk: false) },
+                    onDeleteFromDisk: { pendingRemoval = PendingRemoval(tracks: [$0], fromDisk: true) },
+                    selection: isSelecting ? $selected : nil
                 )
             }
         }
@@ -419,6 +551,11 @@ struct LibraryView: View {
                             }
                             .navigationTitle(folder.title)
                             .navigationBarTitleDisplayMode(.inline)
+                            .toolbar {
+                                detailToolbar(LibraryViewModel.folderContents(vm.filteredAndSortedTracks,
+                                                                              at: path + [folder.key]).tracks)
+                            }
+                            .onDisappear(perform: endSelection)
                         } label: {
                             folderRow(folder)
                         }
@@ -513,6 +650,8 @@ struct LibraryView: View {
         }
         .navigationTitle(collection.title)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar { detailToolbar(collection.tracks) }
+        .onDisappear(perform: endSelection)
     }
 
     private func playCollection(_ tracks: [LocalTrack], shuffled: Bool) {
@@ -662,6 +801,9 @@ struct LibraryView: View {
     }
 
     private func importFolder(_ folder: URL) async {
+        #if os(macOS)
+        libraryManager.retainAccess(to: folder)  // files are referenced in place
+        #endif
         let result = await FolderImporter.importAll(
             from: folder,
             importFile: { url, folder in _ = try await libraryManager.importFile(at: url, folderPath: folder) },
@@ -754,14 +896,16 @@ struct LibraryView: View {
     /// Hold-to-queue for a local file. Skips tracks with no bytes on disk
     /// (`isMissing`) so a placeholder entry isn't enqueued. Converts to a
     /// playable `Track` via the injected library manager's file URL.
-    private func enqueueLocal(_ track: LocalTrack, playNext: Bool) {
-        guard !track.isMissing else { return }
+    private func enqueueLocal(_ tracks: [LocalTrack], playNext: Bool) {
+        let playable = tracks.filter { !$0.isMissing }
+            .map { $0.asPlayerTrack(fileURL: libraryManager.fileURL(for: $0)) }
+        guard !playable.isEmpty else { return }
         Haptics.medium()
-        let asTrack = track.asPlayerTrack(fileURL: libraryManager.fileURL(for: track))
         if playNext {
-            playerManager.playNext(asTrack)
+            // playNext inserts at the front, so go backwards to keep order.
+            playable.reversed().forEach(playerManager.playNext)
         } else {
-            playerManager.addToQueue(asTrack)
+            playable.forEach(playerManager.addToQueue)
         }
     }
 

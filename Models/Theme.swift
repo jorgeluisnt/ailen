@@ -1,5 +1,9 @@
 import SwiftUI
+#if os(iOS)
 import UIKit
+#else
+import AppKit
+#endif
 
 struct AppTheme: Identifiable, Equatable {
     let id: String
@@ -63,7 +67,12 @@ struct RGB: Equatable {
     /// From a `ColorPicker` value, in sRGB. `nil` if it can't be converted.
     init?(_ color: Color) {
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        #if os(iOS)
         guard UIColor(color).getRed(&r, green: &g, blue: &b, alpha: &a) else { return nil }
+        #else
+        guard let rgb = NSColor(color).usingColorSpace(.sRGB) else { return nil }
+        rgb.getRed(&r, green: &g, blue: &b, alpha: &a)
+        #endif
         self.init(r: Double(r), g: Double(g), b: Double(b))
     }
 

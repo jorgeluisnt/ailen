@@ -5,18 +5,6 @@ import UIKit.UIGestureRecognizerSubclass
 
 /// What the screen does while music plays with the app in the foreground.
 /// Raw values are persisted.
-enum ScreenWhilePlaying: String, CaseIterable {
-    case normal, keepOn, keepOnDim
-
-    var displayName: String {
-        switch self {
-        case .normal: return "Normal"
-        case .keepOn: return "Mantener encendida"
-        case .keepOnDim: return "Encendida y atenuar"
-        }
-    }
-}
-
 /// Keeps the screen awake (and optionally dims it after a pause without
 /// touches) while music plays and the app is in the foreground, on any
 /// screen. Everything is undone when playback stops or the app is

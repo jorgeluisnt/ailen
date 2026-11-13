@@ -52,6 +52,38 @@ struct PlayerQualityCard: View {
 }
 
 /// Elapsed · bar · total on one line, plus the rebuffering indicator.
+/// In-app volume slider (`PlayerManager.volume`). The hardware buttons still
+/// move the system volume; this scales Ailen's output beneath it.
+struct PlayerVolumeSlider: View {
+    @EnvironmentObject private var playerManager: PlayerManager
+    @EnvironmentObject private var themeManager: ThemeManager
+
+    var body: some View {
+        HStack(spacing: DS.Spacing.md) {
+            Button { playerManager.setVolume(0) } label: {
+                Image(systemName: playerManager.volume == 0 ? "speaker.slash.fill" : "speaker.fill")
+                    .font(.caption)
+                    .foregroundColor(themeManager.textSecondary)
+                    .frame(width: 24, height: 34)
+            }
+            .accessibilityLabel("Silenciar")
+            Slider(value: Binding(get: { Double(playerManager.volume) },
+                                  set: { playerManager.setVolume(Float($0)) }),
+                   in: 0...1)
+                .tint(themeManager.theme.accentColor)
+                .accessibilityLabel("Volumen")
+                .accessibilityValue("\(Int((playerManager.volume * 100).rounded())) %")
+            Button { playerManager.setVolume(1) } label: {
+                Image(systemName: "speaker.wave.3.fill")
+                    .font(.caption)
+                    .foregroundColor(themeManager.textSecondary)
+                    .frame(width: 24, height: 34)
+            }
+            .accessibilityLabel("Volumen máximo")
+        }
+    }
+}
+
 struct PlayerSeekBar: View {
     @EnvironmentObject private var playerManager: PlayerManager
     @EnvironmentObject private var clock: PlaybackClock
@@ -191,6 +223,9 @@ struct PlayerSecondaryControls: View {
     var onNothingLeft: () -> Void = {}
 
     @State private var trackPendingDeletion: Track?
+    /// true = "Eliminar del disco" (also deletes the original in Files).
+    @State private var deletionFromDisk = false
+    @State private var deletionError: String?
 
     var body: some View {
         HStack(spacing: spacing) {
@@ -249,16 +284,34 @@ struct PlayerSecondaryControls: View {
         .padding(.vertical, DS.Spacing.md)
         .glassSurface(in: Capsule())
         .confirmationDialog(
-            "¿Eliminar el archivo?",
+            deletionFromDisk ? "¿Eliminar del disco?" : "¿Eliminar de la biblioteca?",
             isPresented: Binding(get: { trackPendingDeletion != nil },
                                  set: { if !$0 { trackPendingDeletion = nil } }),
             titleVisibility: .visible,
             presenting: trackPendingDeletion
         ) { pending in
-            Button("Eliminar archivo", role: .destructive) { deleteFile(pending) }
+            Button(deletionFromDisk ? "Eliminar del disco" : "Eliminar de la biblioteca", role: .destructive) {
+                deleteFile(pending)
+            }
             Button("Cancelar", role: .cancel) {}
         } message: { pending in
-            Text("Se borrará «\(pending.title)» del dispositivo, de Favoritos y de todas las listas. No se puede deshacer.")
+            #if os(macOS)
+            Text(deletionFromDisk
+                 ? "Se moverá a la Papelera el archivo de «\(pending.title)» y se quitará de la biblioteca, Favoritos y listas."
+                 : "Se quitará «\(pending.title)» de la biblioteca, Favoritos y listas. El archivo de tu Mac no se borra.")
+            #else
+            Text(deletionFromDisk
+                 ? "Se borrará de la app Archivos el archivo original de «\(pending.title)» y se quitará de la biblioteca, Favoritos y listas. No se puede deshacer."
+                 : "Se quitará «\(pending.title)» de la biblioteca, Favoritos y listas, y se borrará su copia en Ailen. El original en la app Archivos no se toca.")
+            #endif
+        }
+        .alert(
+            "No se pudo eliminar",
+            isPresented: Binding(get: { deletionError != nil }, set: { if !$0 { deletionError = nil } })
+        ) {
+            Button("Aceptar", role: .cancel) { deletionError = nil }
+        } message: {
+            Text(deletionError ?? "")
         }
     }
 
@@ -284,9 +337,16 @@ struct PlayerSecondaryControls: View {
             // Only imported files can be deleted from the device.
             if track.localFileURL != nil {
                 Button(role: .destructive) {
+                    deletionFromDisk = false
                     trackPendingDeletion = track
                 } label: {
-                    Label("Eliminar archivo…", systemImage: "trash")
+                    Label("Eliminar de la biblioteca…", systemImage: "trash")
+                }
+                Button(role: .destructive) {
+                    deletionFromDisk = true
+                    trackPendingDeletion = track
+                } label: {
+                    Label("Eliminar del disco…", systemImage: "xmark.bin")
                 }
             }
         } label: {
@@ -303,14 +363,13 @@ struct PlayerSecondaryControls: View {
         guard let local = localLibraryManager.tracks.first(where: { "local:\($0.id.uuidString)" == track.id }) else {
             return
         }
-        playerManager.forget(track)
-        for list in playlistsContaining(track) {
-            playlistsManager.removeTrack(track, from: list)
+        let failed = localLibraryManager.purge([local], fromDisk: deletionFromDisk, player: playerManager,
+                                               favorites: favoritesManager, playlists: playlistsManager,
+                                               recents: recentlyPlayedManager)
+        if !failed.isEmpty {
+            deletionError = "No se pudo borrar el archivo original; la canción sigue en la biblioteca. Si se importó antes de esta versión, bórrala desde la app Archivos."
+            return
         }
-        if favoritesManager.isFavorite(track) {
-            favoritesManager.remove(track)
-        }
-        localLibraryManager.remove(local)
         if playerManager.currentTrack == nil {
             onNothingLeft()
         }
@@ -333,50 +392,47 @@ struct PlayerSecondaryControls: View {
     }
 }
 
-/// Adds the current track to one of the user's playlists.
+/// Adds `tracks` to one of the user's playlists, or to a new one created
+/// right here. The one sheet behind every "Añadir a una lista" (player,
+/// library — including multi-select — and favourites).
 struct AddToPlaylistSheet: View {
-    @EnvironmentObject private var playerManager: PlayerManager
     @EnvironmentObject private var playlistsManager: PlaylistsManager
     @EnvironmentObject private var recentlyPlayedManager: RecentlyPlayedManager
     @EnvironmentObject private var themeManager: ThemeManager
-    @EnvironmentObject private var nav: NavigationCoordinator
+
+    let tracks: [Track]
+    /// Runs after the tracks were added, and on "Listo".
+    let onDone: () -> Void
+
+    @State private var showNewPlaylistAlert = false
+    @State private var newPlaylistName = ""
 
     var body: some View {
         NavigationStack {
-            Group {
-                if playlistsManager.playlists.isEmpty {
-                    VStack(spacing: 16) {
-                        Image(systemName: "music.note.list")
-                            .font(.system(size: 40))
-                            .foregroundColor(.secondary)
-                        Text("No hay listas")
-                            .font(.title3)
-                            .fontWeight(.semibold)
-                        Text("Primero crea una lista")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-                } else {
-                    List(playlistsManager.playlists) { playlist in
-                        Button {
-                            if let track = playerManager.currentTrack {
-                                playlistsManager.addTrack(track, to: playlist)
-                                recentlyPlayedManager.trackAdded(track)
-                                nav.presentedSheet = nil
+            List {
+                Button {
+                    showNewPlaylistAlert = true
+                } label: {
+                    Label("Nueva lista…", systemImage: "plus")
+                        .foregroundColor(themeManager.theme.accentColor)
+                }
+                ForEach(playlistsManager.playlists) { playlist in
+                    Button {
+                        tracks.forEach { playlistsManager.addTrack($0, to: playlist) }
+                        finish()
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text(playlist.name)
+                                    .font(.body)
+                                    .foregroundColor(themeManager.textPrimary)
+                                Text("\(playlist.tracks.count) \(playlist.tracks.count == 1 ? "canción" : "canciones")")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
                             }
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading) {
-                                    Text(playlist.name)
-                                        .font(.body)
-                                    Text("\(playlist.tracks.count) \(playlist.tracks.count == 1 ? "canción" : "canciones")")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                                Spacer()
-                                Image(systemName: "plus.circle")
-                                    .foregroundColor(themeManager.theme.accentColor)
-                            }
+                            Spacer()
+                            Image(systemName: "plus.circle")
+                                .foregroundColor(themeManager.theme.accentColor)
                         }
                     }
                 }
@@ -385,9 +441,41 @@ struct AddToPlaylistSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Listo") { nav.presentedSheet = nil }
+                    Button("Listo", action: onDone)
                 }
             }
+            .alert("Nueva lista", isPresented: $showNewPlaylistAlert) {
+                TextField("Nombre de la lista", text: $newPlaylistName)
+                Button("Cancelar", role: .cancel) { newPlaylistName = "" }
+                Button("Crear") {
+                    let name = newPlaylistName.trimmingCharacters(in: .whitespaces)
+                    newPlaylistName = ""
+                    guard !name.isEmpty else { return }
+                    _ = playlistsManager.create(name: name, tracks: tracks)
+                    finish()
+                }
+            } message: {
+                Text(tracks.count == 1 ? "Se añadirá «\(tracks[0].title)»."
+                                       : "Se añadirán \(tracks.count) canciones.")
+            }
+        }
+    }
+
+    private func finish() {
+        Haptics.success()
+        tracks.forEach(recentlyPlayedManager.trackAdded)
+        onDone()
+    }
+}
+
+/// `AddToPlaylistSheet` for whatever is playing (the player's button).
+private struct CurrentTrackAddToPlaylistSheet: View {
+    @EnvironmentObject private var playerManager: PlayerManager
+    @EnvironmentObject private var nav: NavigationCoordinator
+
+    var body: some View {
+        AddToPlaylistSheet(tracks: playerManager.currentTrack.map { [$0] } ?? []) {
+            nav.presentedSheet = nil
         }
     }
 }
@@ -401,13 +489,14 @@ struct PlayerSheetContent: View {
         switch sheet {
         case .equalizer: EqualizerView()
         case .speedAndPitch: SpeedPitchSheet()
-        case .addToPlaylist: AddToPlaylistSheet()
+        case .addToPlaylist: CurrentTrackAddToPlaylistSheet()
         case .queue: QueueView()
         case .missingTrackRepair: EmptyView()
         }
     }
 }
 
+#if os(iOS)
 /// "Editar" / "Listo" for reordering the queue. The system `EditButton`
 /// shows "Edit" because the app ships no Spanish localization bundle.
 struct QueueEditButton: View {
@@ -420,13 +509,15 @@ struct QueueEditButton: View {
     }
 }
 
+#endif
+
 /// Now Playing backdrop shared by the iPad panel and the full-screen player:
 /// the current artwork, heavily blurred and darkened so text stays legible,
 /// under Liquid Glass. Without artwork, a soft accent gradient. Fills the
 /// screen edges; place it as a background.
 struct ArtworkBlurBackground: View {
     let url: URL?
-    var image: UIImage? = nil
+    var image: PlatformImage? = nil
     let tokens: DesignTokens
 
     var body: some View {
@@ -435,7 +526,7 @@ struct ArtworkBlurBackground: View {
             if let image {
                 Color.clear
                     .overlay {
-                        Image(uiImage: image)
+                        Image(platformImage: image)
                             .resizable()
                             .aspectRatio(contentMode: .fill)
                             .blur(radius: 60)

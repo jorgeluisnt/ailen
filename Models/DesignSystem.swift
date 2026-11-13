@@ -77,7 +77,7 @@ extension View {
     /// touch. Earlier iOS versions get the classic translucent material.
     @ViewBuilder
     func glassSurface<S: Shape>(in shape: S, tint: Color? = nil, interactive: Bool = false) -> some View {
-        if #available(iOS 26.0, *) {
+        if #available(iOS 26.0, macOS 26.0, *) {
             self.glassEffect(Glass.regular.tint(tint).interactive(interactive), in: shape)
         } else {
             self.background(.ultraThinMaterial, in: shape)

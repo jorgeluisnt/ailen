@@ -184,6 +184,16 @@ final class LocalLibraryManager: ObservableObject {
     /// `BackendCoverFetcher`, which calls the `/api/cover` backend endpoint.
     private let coverFetcher: CoverFetching
     private var saveDebouncer: Debouncer!
+    /// Import by reference (keep files where they are) instead of copying.
+    /// Default: on for macOS, where music lives in a folder the user owns;
+    /// off for iOS, where picked files can vanish (iCloud, Files providers).
+    private let referencesFiles: Bool
+
+    #if os(macOS)
+    nonisolated static let defaultReferencesFiles = true
+    #else
+    nonisolated static let defaultReferencesFiles = false
+    #endif
 
     /// Runtime location for sample-data files. Sibling to
     /// `libraryDirectory` (i.e. `Documents/AriaLibrary.sampleData/`).
@@ -198,9 +208,11 @@ final class LocalLibraryManager: ObservableObject {
         fileManager: FileManager = .default,
         isCloudFileNotDownloaded: @escaping (URL) -> Bool = LocalLibraryManager.defaultIsCloudFileNotDownloaded(_:),
         loadArtworkData: @escaping (URL) async -> Data? = LocalLibraryManager.defaultLoadArtworkData(from:),
-        coverFetcher: CoverFetching? = nil
+        coverFetcher: CoverFetching? = nil,
+        referencesFiles: Bool = LocalLibraryManager.defaultReferencesFiles
     ) {
         self.store = store
+        self.referencesFiles = referencesFiles
         self.libraryDirectory = libraryDirectory
         self.sampleDataDirectory = libraryDirectory.deletingLastPathComponent()
             .appendingPathComponent(libraryDirectory.lastPathComponent + ".sampleData")
@@ -211,6 +223,11 @@ final class LocalLibraryManager: ObservableObject {
         self.saveDebouncer = Debouncer(delay: 0.5) { [weak self] in self?.performSave() }
         try? fileManager.createDirectory(at: libraryDirectory, withIntermediateDirectories: true)
         try? fileManager.createDirectory(at: sampleDataDirectory, withIntermediateDirectories: true)
+        #if os(macOS)
+        // Before the missing-file audit: referenced files are only reachable
+        // once their folder's security scope is reopened.
+        restoreAccessRoots()
+        #endif
         load()
         auditMissingFlags()
         // Never delete unindexed audio at launch. If the JSON index failed
@@ -310,18 +327,32 @@ final class LocalLibraryManager: ObservableObject {
             throw ImportError.unsupportedFormat(format: format)
         }
 
-        let original = try Data(contentsOf: sourceURL)
         let id = UUID()
-        let ext = sourceURL.pathExtension
-        let fileName = ext.isEmpty ? id.uuidString : "\(id.uuidString).\(ext)"
-        let destURL = libraryDirectory.appendingPathComponent(fileName)
-        try AtomicFileWriter.writeAtomically(original, to: destURL)
+        let fileName: String
+        let destURL: URL
+        if referencesFiles {
+            // Same file again (re-imported folder, repeated drop): keep the one entry.
+            if let existing = tracks.first(where: { $0.externalPath == sourceURL.path }) {
+                return existing
+            }
+            #if os(macOS)
+            retainAccess(to: sourceURL)
+            #endif
+            fileName = sourceURL.lastPathComponent
+            destURL = sourceURL
+        } else {
+            let original = try Data(contentsOf: sourceURL)
+            let ext = sourceURL.pathExtension
+            fileName = ext.isEmpty ? id.uuidString : "\(id.uuidString).\(ext)"
+            destURL = libraryDirectory.appendingPathComponent(fileName)
+            try AtomicFileWriter.writeAtomically(original, to: destURL)
+        }
 
         let title = (await Self.readTitle(at: destURL, fallback: sourceURL.deletingPathExtension().lastPathComponent))
         let artist = await Self.readArtist(at: destURL)
         let album = await Self.readAlbum(at: destURL)
         let genre = await GenreTag.read(at: destURL)
-        let storedSize = (try? fileManager.attributesOfItem(atPath: destURL.path)[.size] as? Int64) ?? Int64(original.count)
+        let storedSize = (try? fileManager.attributesOfItem(atPath: destURL.path)[.size] as? Int64) ?? size
         let duration = await Self.readDuration(at: destURL)
         var artworkFileName = await extractArtwork(from: destURL, trackID: id)
         if artworkFileName == nil {
@@ -341,18 +372,23 @@ final class LocalLibraryManager: ObservableObject {
             durationSeconds: duration,
             album: album,
             genre: genre ?? "",
-            folderPath: folderPath ?? sourceURL.deletingLastPathComponent().lastPathComponent
+            folderPath: folderPath ?? sourceURL.deletingLastPathComponent().lastPathComponent,
+            // Taken while the security scope is open, so it carries access.
+            sourceBookmark: referencesFiles ? nil : try? sourceURL.bookmarkData(
+                options: .minimalBookmark, includingResourceValuesForKeys: nil, relativeTo: nil),
+            externalPath: referencesFiles ? sourceURL.path : nil
         )
         tracks.insert(track, at: 0)
         save()
         return track
     }
 
-    /// Removes the file and the track entry. No-op if the track isn't
-    /// in the library.
+    /// Removes the track entry and its in-app copy. A referenced file (in the
+    /// user's own folder) is never deleted here — that's `purge(fromDisk:)`.
     func remove(_ track: LocalTrack) {
-        let url = fileURL(for: track)
-        try? fileManager.removeItem(at: url)
+        if !track.isReference {
+            try? fileManager.removeItem(at: fileURL(for: track))
+        }
         if let artworkURL = artworkURL(for: track) {
             try? fileManager.removeItem(at: artworkURL)
         }
@@ -360,11 +396,126 @@ final class LocalLibraryManager: ObservableObject {
         save()
     }
 
+    /// Removes `tracks` from the player, favourites, playlists, history and
+    /// the library (with its in-app copy) — the one path every delete uses,
+    /// so no list is left pointing at a deleted file. The player lets go
+    /// first so AVPlayer isn't reading the file.
+    ///
+    /// `fromDisk` ("Eliminar del disco") first deletes the *original* in
+    /// Files via the bookmark taken at import. Tracks whose original can't be
+    /// deleted are kept untouched; their titles are returned for the UI.
+    @discardableResult
+    func purge(_ tracks: [LocalTrack], fromDisk: Bool,
+               player: PlayerManager, favorites: FavoritesManager,
+               playlists: PlaylistsManager, recents: RecentlyPlayedManager) -> [String] {
+        var failed: [String] = []
+        var doomed: [LocalTrack] = []
+        for track in tracks {
+            if !fromDisk || deleteOriginal(of: track) {
+                doomed.append(track)
+            } else {
+                failed.append(track.title)
+            }
+        }
+        let ids = Set(doomed.map { "local:\($0.id.uuidString)" })
+        let matches: (Track) -> Bool = { ids.contains($0.id) }
+        player.forget(where: matches)
+        favorites.removeAll(where: matches)
+        playlists.removeTracks(where: matches)
+        recents.removeAll(where: matches)
+        doomed.forEach(remove)
+        return failed
+    }
+
+    private func deleteOriginal(of track: LocalTrack) -> Bool {
+        let url: URL
+        if track.isReference {
+            url = fileURL(for: track)  // reachable through its folder's scope
+        } else {
+            guard let bookmark = track.sourceBookmark else { return false }
+            var stale = false
+            guard let resolved = try? URL(resolvingBookmarkData: bookmark, options: [],
+                                          relativeTo: nil, bookmarkDataIsStale: &stale) else { return false }
+            url = resolved
+        }
+        let didStart = url.startAccessingSecurityScopedResource()
+        defer { if didStart { url.stopAccessingSecurityScopedResource() } }
+        // Already gone from Files counts as deleted.
+        guard fileManager.fileExists(atPath: url.path) else { return true }
+        // Coordinated so File Providers (iCloud Drive, etc.) see the delete.
+        var deleted = false
+        var coordError: NSError?
+        NSFileCoordinator().coordinate(writingItemAt: url, options: .forDeleting, error: &coordError) { target in
+            do {
+                #if os(macOS)
+                // Mac convention: to the Trash, recoverable — not gone for good.
+                try fileManager.trashItem(at: target, resultingItemURL: nil)
+                #else
+                try fileManager.removeItem(at: target)
+                #endif
+                deleted = true
+            } catch {
+                log.error("deleteFromDisk failed: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+        return deleted
+    }
+
+    #if os(macOS)
+    // MARK: - Folder access (macOS sandbox)
+
+    /// Folders/files the user granted (open panel, drag & drop), kept open for
+    /// the app's lifetime so referenced tracks stay playable. One scope per
+    /// root, not per file: the sandbox caps open scopes.
+    private var accessRoots: [URL] = []
+    private static let accessRootsKey = "libraryAccessRoots"
+
+    /// Reopens every saved root at launch. Unresolvable bookmarks (external
+    /// disk unplugged) are kept, so the tracks come back with the disk.
+    private func restoreAccessRoots() {
+        let saved = UserDefaults.standard.array(forKey: Self.accessRootsKey) as? [Data] ?? []
+        var refreshed: [Data] = []
+        for data in saved {
+            var stale = false
+            guard let url = try? URL(resolvingBookmarkData: data, options: .withSecurityScope,
+                                     relativeTo: nil, bookmarkDataIsStale: &stale),
+                  url.startAccessingSecurityScopedResource() else {
+                refreshed.append(data)
+                continue
+            }
+            accessRoots.append(url)
+            let fresh = stale ? try? url.bookmarkData(options: .withSecurityScope,
+                                                      includingResourceValuesForKeys: nil, relativeTo: nil) : nil
+            refreshed.append(fresh ?? data)
+        }
+        UserDefaults.standard.set(refreshed, forKey: Self.accessRootsKey)
+    }
+
+    /// Keeps `url` (a picked/dropped folder or file) readable across launches.
+    /// No-op when it sits inside a root already kept.
+    func retainAccess(to url: URL) {
+        let path = url.standardizedFileURL.path
+        guard !accessRoots.contains(where: {
+            let root = $0.standardizedFileURL.path
+            return path == root || path.hasPrefix(root.hasSuffix("/") ? root : root + "/")
+        }) else { return }
+        let started = url.startAccessingSecurityScopedResource()
+        guard let data = try? url.bookmarkData(options: .withSecurityScope,
+                                               includingResourceValuesForKeys: nil, relativeTo: nil) else {
+            if started { url.stopAccessingSecurityScopedResource() }
+            return
+        }
+        accessRoots.append(url)
+        let saved = UserDefaults.standard.array(forKey: Self.accessRootsKey) as? [Data] ?? []
+        UserDefaults.standard.set(saved + [data], forKey: Self.accessRootsKey)
+    }
+    #endif
+
     /// "Limpiar biblioteca": deletes every imported audio file and its
     /// artwork, empties the index and writes it immediately. Callers drop the
     /// tracks from the player, favourites and playlists first.
     func removeAll() {
-        for track in tracks {
+        for track in tracks where !track.isReference {
             try? fileManager.removeItem(at: fileURL(for: track))
             if let art = artworkURL(for: track) { try? fileManager.removeItem(at: art) }
         }
@@ -385,7 +536,7 @@ final class LocalLibraryManager: ObservableObject {
         let old = tracks[idx]
 
         let oldFileURL = fileURL(for: old)
-        if fileManager.fileExists(atPath: oldFileURL.path) {
+        if !old.isReference, fileManager.fileExists(atPath: oldFileURL.path) {
             try? fileManager.removeItem(at: oldFileURL)
         }
         if let art = artworkURL(for: old), fileManager.fileExists(atPath: art.path) {
@@ -425,7 +576,8 @@ final class LocalLibraryManager: ObservableObject {
     /// the list; callers should not retain the URL beyond the track's
     /// lifetime.
     func fileURL(for track: LocalTrack) -> URL {
-        libraryDirectory.appendingPathComponent(track.fileName)
+        if let path = track.externalPath { return URL(fileURLWithPath: path) }
+        return libraryDirectory.appendingPathComponent(track.fileName)
     }
 
     /// Reconstructs the absolute artwork URL for a track by resolving its
@@ -469,7 +621,9 @@ final class LocalLibraryManager: ObservableObject {
                 album: track.album,
                 genre: track.genre,
                 folderPath: track.folderPath,
-                isMissing: !exists
+                isMissing: !exists,
+                sourceBookmark: track.sourceBookmark,
+                externalPath: track.externalPath
             )
         }
         if changed {
@@ -701,7 +855,9 @@ final class LocalLibraryManager: ObservableObject {
             album: current.album,
             genre: current.genre,
             folderPath: current.folderPath,
-            isMissing: current.isMissing
+            isMissing: current.isMissing,
+            sourceBookmark: current.sourceBookmark,
+            externalPath: current.externalPath
         )
         save()
     }
@@ -800,7 +956,9 @@ final class LocalLibraryManager: ObservableObject {
             album: current.album,
             genre: current.genre,
             folderPath: current.folderPath,
-            isMissing: current.isMissing
+            isMissing: current.isMissing,
+            sourceBookmark: current.sourceBookmark,
+            externalPath: current.externalPath
         )
         save()
     }

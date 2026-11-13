@@ -86,4 +86,50 @@ final class FoldersAndClearLibraryTests: XCTestCase {
         XCTAssertNil(player.currentTrack)
         XCTAssertTrue(player.queue.isEmpty)
     }
+
+    // MARK: - Eliminar (biblioteca / disco)
+
+    func test_sourceBookmarkSurvivesEncoding_andLegacyDecodesAsNil() throws {
+        var t = track("A", folder: nil)
+        t = LocalTrack(id: t.id, title: t.title, artist: nil, artworkFileName: nil, fileName: t.fileName,
+                       importedAt: t.importedAt, fileSizeBytes: 1, durationSeconds: nil,
+                       sourceBookmark: Data([7, 7]))
+        let decoded = try JSONDecoder().decode(LocalTrack.self, from: JSONEncoder().encode(t))
+        XCTAssertEqual(decoded.sourceBookmark, Data([7, 7]))
+        XCTAssertEqual(decoded.withGenre("Rock").sourceBookmark, Data([7, 7]), "copies keep the bookmark")
+        let legacy = try JSONDecoder().decode(LocalTrack.self, from: JSONEncoder().encode(track("B", folder: nil)))
+        XCTAssertNil(legacy.sourceBookmark)
+    }
+
+    func test_purge_removesEverywhere_andDiskDeleteWithoutBookmarkKeepsTrack() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("lib_\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let a = track("A", folder: nil), b = track("B", folder: nil)
+        for t in [a, b] { try Data([1]).write(to: dir.appendingPathComponent(t.fileName)) }
+        let library = LocalLibraryManager(store: InMemoryKeyValueStore(seed: try JSONEncoder().encode([a, b])),
+                                          libraryDirectory: dir)
+        let favorites = FavoritesManager(store: InMemoryKeyValueStore())
+        let playlists = PlaylistsManager(store: InMemoryKeyValueStore())
+        let recents = RecentlyPlayedManager(playedStore: InMemoryKeyValueStore(), addedStore: InMemoryKeyValueStore(),
+                                            statsStore: InMemoryKeyValueStore())
+        let player = PlayerManager(urlSession: MockURLSession())
+        let playerA = a.asPlayerTrack(fileURL: library.fileURL(for: a))
+        favorites.toggle(playerA)
+        let list = playlists.create(name: "L", tracks: [playerA])
+
+        // No bookmark (imported before this version): original can't be deleted → untouched.
+        let failed = library.purge([a], fromDisk: true, player: player, favorites: favorites,
+                                   playlists: playlists, recents: recents)
+        XCTAssertEqual(failed, ["A"])
+        XCTAssertEqual(library.tracks.count, 2)
+        XCTAssertTrue(favorites.isFavorite(playerA))
+
+        library.purge([a], fromDisk: false, player: player, favorites: favorites,
+                      playlists: playlists, recents: recents)
+        XCTAssertEqual(library.tracks.map(\.title), ["B"])
+        XCTAssertFalse(favorites.isFavorite(playerA))
+        XCTAssertTrue(playlists.playlists.first { $0.id == list.id }?.tracks.isEmpty ?? false)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: dir.appendingPathComponent(a.fileName).path))
+    }
 }

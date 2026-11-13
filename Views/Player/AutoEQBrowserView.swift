@@ -27,6 +27,12 @@ struct AutoEQBrowserView: View {
 
     private var tokens: DesignTokens { themeManager.tokens }
 
+    #if os(iOS)
+    private static let searchPlacement = SearchFieldPlacement.navigationBarDrawer(displayMode: .always)
+    #else
+    private static let searchPlacement = SearchFieldPlacement.automatic
+    #endif
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -50,8 +56,7 @@ struct AutoEQBrowserView: View {
                     Button("Cancelar") { dismiss() }
                 }
             }
-            .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always),
-                        prompt: "Busca tus auriculares")
+            .searchable(text: $query, placement: Self.searchPlacement, prompt: "Busca tus auriculares")
         }
         .onAppear { catalog.loadIndexIfNeeded() }
         .alert("AutoEQ", isPresented: .init(

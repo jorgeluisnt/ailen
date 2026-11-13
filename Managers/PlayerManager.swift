@@ -42,6 +42,18 @@ final class PlayerManager: NSObject, ObservableObject {
     /// launch). Applied to the AVPlayer via `defaultRate`; pitch follows it.
     @Published private(set) var playbackRate: Float = PlaybackTuning.defaultSpeed
 
+    /// In-app volume (0…1), persisted. Scales the AVPlayer's output on top of
+    /// the system volume: instant (MPVolumeView lagged on device) and it works
+    /// on Mac, where the system slider does nothing. 1 = no attenuation.
+    @Published private(set) var volume: Float =
+        UserDefaults.standard.object(forKey: "playerVolume") as? Float ?? 1
+
+    func setVolume(_ value: Float) {
+        volume = min(max(value, 0), 1)
+        avPlayerPath.volume = volume
+        UserDefaults.standard.set(volume, forKey: "playerVolume")
+    }
+
     /// Pitch offset in semitones, on top of the change speed causes
     /// (session-scoped, like `playbackRate`). 0 means no pitch processing.
     @Published private(set) var playbackPitch: Float = PlaybackTuning.defaultPitch
@@ -232,8 +244,10 @@ final class PlayerManager: NSObject, ObservableObject {
     /// Shared init tail: registers audio-session observers, wires the debounced
     /// playback-state saver, then restores any persisted session.
     private func commonInit() {
+        avPlayerPath.volume = volume
         playbackSaveDebouncer = Debouncer(delay: 0.5) { [weak self] in self?.performSavePlayback() }
 
+        #if os(iOS)
         NotificationCenter.default.addObserver(
             self, selector: #selector(handleInterruption(_:)),
             name: AVAudioSession.interruptionNotification, object: nil
@@ -242,6 +256,7 @@ final class PlayerManager: NSObject, ObservableObject {
             self, selector: #selector(handleRouteChange(_:)),
             name: AVAudioSession.routeChangeNotification, object: nil
         )
+        #endif
 
         restorePlaybackState()
     }
@@ -286,6 +301,7 @@ final class PlayerManager: NSObject, ObservableObject {
 
     // MARK: - Audio session notifications
 
+    #if os(iOS)
     @objc private func handleInterruption(_ note: Notification) {
         guard let info = note.userInfo,
               let raw = info[AVAudioSessionInterruptionTypeKey] as? UInt,
@@ -324,6 +340,7 @@ final class PlayerManager: NSObject, ObservableObject {
         // Delivered off-main; hop before pausing (which mutates @Published state).
         DispatchQueue.main.async { [weak self] in self?.pause() }
     }
+    #endif
 
     // MARK: - Playback
 
@@ -423,7 +440,6 @@ final class PlayerManager: NSObject, ObservableObject {
         playGeneration += 1
         let gen = playGeneration
         log.notice("play local track=\(track.id, privacy: .public) gen=\(gen) eq=\(self.eq.isEnabled, privacy: .public) hasArtwork=\(track.thumbnailURL != nil, privacy: .public)")
-        _ = gen  // reserved for future generation-based cancellation
         nowPlaying.activateAudioSession()
 
         currentTrack = track
@@ -443,8 +459,36 @@ final class PlayerManager: NSObject, ObservableObject {
         currentStreamURL = fileURL
         // Local files play through AVPlayer too; EQ (if on) is applied by the
         // real-time tap inside AVPlayerPath — same single path as streaming.
+        #if os(macOS)
+        if OutputRateMatcher.isNeeded {
+            // Ready the output device (rate, exclusive mode) *before* audio starts.
+            Task { [weak self] in
+                let rate = await SourceAudioInfo.inspect(fileURL)?.sampleRate
+                await OutputRateMatcher.prepare(sourceRate: rate)
+                // A newer play() won the race: don't start this file.
+                guard let self, self.playGeneration == gen else { return }
+                self.playAVPlayer(url: fileURL)
+            }
+            return
+        }
+        #else
+        _ = gen  // generation check only needed by the macOS async start
+        #endif
         playAVPlayer(url: fileURL)
     }
+
+    #if os(macOS)
+    /// Follows the chosen output device (Ajustes, or a fallback after the DAC
+    /// is unplugged). On an actual switch, readies the new device for the
+    /// playing file — rate and exclusive mode — which may click once.
+    func applyOutputDevice() {
+        guard avPlayerPath.applyOutputDevice(), let url = currentStreamURL, url.isFileURL else { return }
+        Task {
+            let rate = await SourceAudioInfo.inspect(url)?.sampleRate
+            await OutputRateMatcher.prepare(sourceRate: rate)
+        }
+    }
+    #endif
 
     func togglePlayPause() {
         guard let track = currentTrack else { return }

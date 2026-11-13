@@ -29,7 +29,7 @@ struct FavoritesView: View {
             }
         }
         .sheet(item: $addToPlaylistTrack) { track in
-            addToPlaylistSheet(for: track)
+            AddToPlaylistSheet(tracks: [track]) { addToPlaylistTrack = nil }
         }
     }
 
@@ -231,61 +231,5 @@ struct FavoritesView: View {
                 .contentShape(Rectangle())
         }
         .accessibilityLabel("Más acciones para \(track.title)")
-    }
-
-    /// Same pattern as the full-screen player's sheet, but for an explicit
-    /// track (not the currently playing one).
-    private func addToPlaylistSheet(for track: Track) -> some View {
-        NavigationStack {
-            ZStack {
-                tokens.background.ignoresSafeArea()
-
-                if playlistsManager.playlists.isEmpty {
-                    VStack(spacing: DS.Spacing.lg) {
-                        Image(systemName: "music.note.list")
-                            .font(.system(size: 40))
-                            .foregroundColor(tokens.textSecondary)
-                        Text("No hay listas")
-                            .font(DS.Typography.titleMedium)
-                            .foregroundColor(tokens.textPrimary)
-                        Text("Primero crea una lista")
-                            .font(DS.Typography.body)
-                            .foregroundColor(tokens.textSecondary)
-                    }
-                } else {
-                    List(playlistsManager.playlists) { playlist in
-                        Button {
-                            playlistsManager.addTrack(track, to: playlist)
-                            recentlyPlayedManager.trackAdded(track)
-                            addToPlaylistTrack = nil
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(playlist.name)
-                                        .font(DS.Typography.bodyEm)
-                                        .foregroundColor(tokens.textPrimary)
-                                    Text("\(playlist.tracks.count) \(playlist.tracks.count == 1 ? "canción" : "canciones")")
-                                        .font(DS.Typography.caption)
-                                        .foregroundColor(tokens.textSecondary)
-                                }
-                                Spacer()
-                                Image(systemName: "plus.circle")
-                                    .foregroundColor(tokens.accent)
-                            }
-                        }
-                        .listRowBackground(tokens.background)
-                    }
-                    .listStyle(.plain)
-                    .scrollContentBackground(.hidden)
-                }
-            }
-            .navigationTitle("Añadir a una lista")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Listo") { addToPlaylistTrack = nil }
-                }
-            }
-        }
     }
 }

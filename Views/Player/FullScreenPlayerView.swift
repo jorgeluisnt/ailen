@@ -91,6 +91,8 @@ struct FullScreenPlayerView: View {
                     PlayerSeekBar()
                         .padding(.bottom, DS.Spacing.sm)
                     PlayerTransportControls()
+                        .padding(.bottom, DS.Spacing.md)
+                    PlayerVolumeSlider()
                         .padding(.bottom, DS.Spacing.lg)
                     PlayerSecondaryControls(track: track, onNothingLeft: onDismiss)
                     queueHint

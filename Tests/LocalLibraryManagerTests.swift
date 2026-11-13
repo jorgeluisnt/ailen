@@ -16,7 +16,9 @@ final class LocalLibraryManagerTests: XCTestCase {
             .appendingPathComponent("local_library_test_\(UUID().uuidString)")
         libraryDir = tmpDir.appendingPathComponent("AriaLibrary")
         store = InMemoryKeyValueStore()
-        manager = LocalLibraryManager(store: store, libraryDirectory: libraryDir)
+        // Copy mode explicitly: these tests pin the copy-into-library path,
+        // the iOS default (macOS defaults to reference mode).
+        manager = LocalLibraryManager(store: store, libraryDirectory: libraryDir, referencesFiles: false)
     }
 
     override func tearDown() async throws {
@@ -78,6 +80,34 @@ final class LocalLibraryManagerTests: XCTestCase {
         // `URL.deletingLastPathComponent` may add a trailing slash that
         // `libraryDir` doesn't have.
         XCTAssertEqual(dest.deletingLastPathComponent().path, libraryDir.path)
+    }
+
+    // MARK: - Import by reference (macOS default)
+
+    func test_referenceImport_keepsFileInPlace_neverDeletesIt_andDedupes() async throws {
+        let m = LocalLibraryManager(store: InMemoryKeyValueStore(), libraryDirectory: libraryDir,
+                                    referencesFiles: true)
+        let source = try makeSourceFile(data: Data(repeating: 0x42, count: 2048), ext: "mp3")
+
+        let track = try await m.importFile(at: source)
+        XCTAssertEqual(m.fileURL(for: track).path, source.path, "plays the user's file, no copy")
+        XCTAssertEqual(track.fileName, source.lastPathComponent)
+        let copies = try FileManager.default.contentsOfDirectory(atPath: libraryDir.path)
+            .filter { $0.hasSuffix(".mp3") }
+        XCTAssertTrue(copies.isEmpty, "nothing copied into the app library")
+
+        let again = try await m.importFile(at: source)
+        XCTAssertEqual(again.id, track.id)
+        XCTAssertEqual(m.tracks.count, 1, "re-importing the same file keeps one entry")
+
+        let reloaded = LocalLibraryManager(store: InMemoryKeyValueStore(seed: try JSONEncoder().encode(m.tracks)),
+                                           libraryDirectory: libraryDir, referencesFiles: true)
+        XCTAssertEqual(reloaded.tracks.first?.externalPath, source.path, "survives a relaunch")
+
+        m.remove(track)
+        XCTAssertTrue(m.tracks.isEmpty)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: source.path),
+                      "Eliminar de la biblioteca must never delete the user's own file")
     }
 
     func test_import_addsToFrontOfList() async throws {

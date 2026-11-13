@@ -60,7 +60,7 @@ struct TabletRootView: View {
     var body: some View {
         HStack(spacing: 0) {
             TabletRail(selection: Binding(get: { section }, set: { sectionRaw = $0.rawValue }))
-                .frame(width: 80)
+                .frame(width: TabletRail.width)
                 .zIndex(1)
             NowPlayingPanel()
                 .frame(width: 355)
@@ -76,9 +76,13 @@ struct TabletRootView: View {
         case .library: LibraryView(library: localLibraryManager)
         case .playlists: PlaylistsView()
         case .favorites: FavoritesView()
-        case .videos: VideosView()
         case .appleMusic: AppleMusicView()
+        #if os(iOS)
+        case .videos: VideosView()
         case .spotify: SpotifyView()
+        #else
+        case .videos, .spotify: HomeView(library: localLibraryManager)  // not on Mac
+        #endif
         case .settings: MoreView()
         }
     }
@@ -92,6 +96,15 @@ struct TabletRail: View {
 
     @Binding var selection: TabletSection
 
+    /// Mac windows have room for labels; the iPad rail stays icon-only.
+    #if os(macOS)
+    static let showsLabels = true
+    static let width: CGFloat = 190
+    #else
+    static let showsLabels = false
+    static let width: CGFloat = 80
+    #endif
+
     private var tokens: DesignTokens { themeManager.tokens }
 
     var body: some View {
@@ -104,9 +117,7 @@ struct TabletRail: View {
                 .padding(.bottom, DS.Spacing.lg)
                 .accessibilityLabel("Ailen")
 
-            ForEach([TabletSection.home, .library, .playlists, .favorites, .videos]
-                    + (settingsManager.appleMusicEnabled ? [.appleMusic] : [])
-                    + (settingsManager.spotifyEnabled ? [.spotify] : [])) { item in
+            ForEach(railSections) { item in
                 railButton(item.icon, item.title, selected: selection == item) { selection = item }
             }
             // The equalizer opens as a sheet, like from the player.
@@ -118,8 +129,20 @@ struct TabletRail: View {
                        selected: selection == .settings) { selection = .settings }
         }
         .padding(.vertical, DS.Spacing.lg)
-        .frame(maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)  // background fills the whole rail column
         .background(tokens.surface.ignoresSafeArea())
+    }
+
+    /// Videos, Apple Music and Spotify are iOS-only (the Mac app is local files).
+    private var railSections: [TabletSection] {
+        #if os(iOS)
+        [.home, .library, .playlists, .favorites, .videos]
+            + (settingsManager.appleMusicEnabled ? [.appleMusic] : [])
+            + (settingsManager.spotifyEnabled ? [.spotify] : [])
+        #else
+        [.home, .library, .playlists, .favorites]
+            + (settingsManager.appleMusicEnabled ? [.appleMusic] : [])
+        #endif
     }
 
     private func railButton(_ icon: String, _ title: String, selected: Bool,
@@ -128,10 +151,19 @@ struct TabletRail: View {
             Haptics.selection()
             action()
         } label: {
-            Image(systemName: selected && icon == "heart" ? "heart.fill" : icon)
-                .font(.title3.weight(selected ? .semibold : .regular))
+            HStack(spacing: DS.Spacing.sm) {
+                Image(systemName: selected && icon == "heart" ? "heart.fill" : icon)
+                    .font(.title3.weight(selected ? .semibold : .regular))
+                    .frame(width: 48, height: Self.showsLabels ? 40 : 48)
+                if Self.showsLabels {
+                    Text(title)
+                        .font(.body.weight(selected ? .semibold : .regular))
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
+                }
+            }
                 .foregroundColor(selected ? .white : tokens.textSecondary)
-                .frame(width: 48, height: 48)
+                .frame(width: Self.showsLabels ? Self.width - 2 * DS.Spacing.md : 48)
                 .background {
                     if selected {
                         RoundedRectangle(cornerRadius: 14, style: .continuous).fill(tokens.accentGradient)

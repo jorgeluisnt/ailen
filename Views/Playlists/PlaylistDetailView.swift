@@ -40,10 +40,13 @@ struct PlaylistDetailView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItemGroup(placement: .primaryAction) {
+                    // macOS reorders/deletes rows directly (drag, ⌫); no edit mode.
+                    #if os(iOS)
                     if !currentPlaylist.tracks.isEmpty {
                         EditButton()
                             .foregroundColor(tokens.textPrimary)
                     }
+                    #endif
                     Menu {
                         Button {
                             renameText = currentPlaylist.name

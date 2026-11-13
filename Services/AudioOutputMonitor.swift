@@ -1,3 +1,12 @@
+import Foundation
+
+extension Notification.Name {
+    /// Posted by `NowPlayingService` once audio output is active (iOS: after
+    /// `setActive(true)` succeeds; macOS: on every start).
+    static let ariaAudioSessionActivated = Notification.Name("AriaAudioSessionActivated")
+}
+
+#if os(iOS)
 import AVFoundation
 import Combine
 import UIKit
@@ -54,11 +63,6 @@ extension AVAudioSession: AudioSessionReading {
     var outputPorts: [AudioOutputPort] {
         currentRoute.outputs.map { AudioOutputPort(name: $0.portName, type: $0.portType) }
     }
-}
-
-extension Notification.Name {
-    /// Posted by `NowPlayingService` after `setActive(true)` succeeds.
-    static let ariaAudioSessionActivated = Notification.Name("AriaAudioSessionActivated")
 }
 
 /// Publishes the active output route and the session's effective sample rate.
@@ -120,3 +124,4 @@ final class AudioOutputMonitor: ObservableObject {
         if next != snapshot { snapshot = next }
     }
 }
+#endif

@@ -6,10 +6,14 @@ struct NowPlayingPanel: View {
     @EnvironmentObject private var playerManager: PlayerManager
     @EnvironmentObject private var themeManager: ThemeManager
     @EnvironmentObject private var appleMusic: AppleMusicService
+    #if os(iOS)
     @EnvironmentObject private var spotify: SpotifyService
+    #endif
 
     @State private var sourceInfo: SourceAudioInfo?
+    #if os(iOS)
     @State private var editMode: EditMode = .inactive
+    #endif
 
     private var tokens: DesignTokens { themeManager.tokens }
 
@@ -41,6 +45,7 @@ struct NowPlayingPanel: View {
                 PlayerQualityCard(track: track, sourceInfo: sourceInfo)
                 PlayerSeekBar()
                 PlayerTransportControls(compact: true)
+                PlayerVolumeSlider()
                 PlayerSecondaryControls(track: track, spacing: 14)
                 queueSection
             } else {
@@ -60,6 +65,13 @@ struct NowPlayingPanel: View {
             }
         }
         .padding(.horizontal, DS.Spacing.lg)
+        #if os(macOS)
+        // Match the iPad look: no bordered Mac buttons, no visible slider
+        // labels (kept for VoiceOver), no menu chevrons.
+        .buttonStyle(.borderless)
+        .labelsHidden()
+        .menuIndicator(.hidden)
+        #endif
         .frame(maxHeight: .infinity)
         // Artwork and glass reach the screen edges (under the status bar and
         // home indicator); only the content respects the safe area.
@@ -70,7 +82,9 @@ struct NowPlayingPanel: View {
                 ArtworkBlurBackground(url: playerManager.currentArtworkURL, tokens: tokens)
             }
         }
+        #if os(iOS)
         .environment(\.editMode, $editMode)
+        #endif
         .task(id: playerManager.currentTrack?.id) {
             sourceInfo = nil
             guard let url = playerManager.currentTrack?.localFileURL else { return }
@@ -78,8 +92,14 @@ struct NowPlayingPanel: View {
         }
     }
 
-    /// Apple Music or Spotify was started last: show and control it instead.
-    private var external: ExternalNowPlaying? { ExternalNowPlaying.active(appleMusic: appleMusic, spotify: spotify) }
+    /// Apple Music (or, on iOS, Spotify) was started last: show and control it instead.
+    private var external: ExternalNowPlaying? {
+        #if os(iOS)
+        ExternalNowPlaying.active(appleMusic: appleMusic, spotify: spotify)
+        #else
+        ExternalNowPlaying.active(appleMusic: appleMusic)
+        #endif
+    }
 
     private var artwork: some View {
         Group {
@@ -107,11 +127,13 @@ struct NowPlayingPanel: View {
                     .foregroundColor(tokens.textSecondary)
                     .accessibilityAddTraits(.isHeader)
                 Spacer()
+                #if os(iOS)
                 if !playerManager.queue.isEmpty {
                     QueueEditButton(editMode: $editMode)
                         .font(DS.Typography.captionStrong)
                         .foregroundColor(tokens.highlightColor)
                 }
+                #endif
             }
             if playerManager.queue.isEmpty {
                 Text("La cola está vacía")

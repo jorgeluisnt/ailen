@@ -1,3 +1,4 @@
+#if os(iOS)
 import UIKit
 
 /// Lightweight haptics helper. Centralised so we can tune intensity in one place
@@ -39,3 +40,14 @@ enum Haptics {
         g.selectionChanged()
     }
 }
+#else
+/// macOS has no haptic engine for app feedback; calls are no-ops.
+enum Haptics {
+    static func light() {}
+    static func medium() {}
+    static func soft() {}
+    static func success() {}
+    static func warning() {}
+    static func selection() {}
+}
+#endif

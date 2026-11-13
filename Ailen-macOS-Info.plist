@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Native macOS build. Keys shared with Ailen-Info.plist (M3U type)
+	     must be kept in sync; iOS-only keys (background modes, Spotify
+	     callbacks, ATS dev bypasses) are intentionally absent. -->
+	<key>UTImportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>public.m3u-playlist</string>
+			<key>UTTypeDescription</key>
+			<string>M3U Playlist</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.text</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>m3u</string>
+					<string>m3u8</string>
+				</array>
+				<key>public.mime-type</key>
+				<array>
+					<string>audio/x-mpegurl</string>
+					<string>audio/mpegurl</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>Ailen usa tu biblioteca de Apple Music para mostrar y reproducir tus listas, álbumes y canciones.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+</dict>
+</plist>

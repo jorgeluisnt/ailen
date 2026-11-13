@@ -16,7 +16,11 @@ enum AppleMusicAvailability {
         switch status {
         case .authorized: return nil
         case .denied, .restricted:
+            #if os(macOS)
+            return "Sin permiso para Apple Music. Actívalo en Ajustes del Sistema → Privacidad y seguridad → Medios y Apple Music → Ailen."
+            #else
             return "Sin permiso para Apple Music. Actívalo en Ajustes de iOS → Ailen → Medios y Apple Music."
+            #endif
         case .notDetermined: return "Ailen necesita tu permiso para usar Apple Music."
         @unknown default: return "No se pudo comprobar el permiso de Apple Music."
         }

@@ -53,6 +53,7 @@ enum OutputSampleRate {
         return asbd.mSampleRate > 0 ? asbd.mSampleRate : nil
     }
 
+    #if os(iOS)
     /// Requests a candidate rate on the shared session. This does not report
     /// the effective output rate and is not used by the local playback path.
     static func apply(forSource sourceRate: Double,
@@ -75,5 +76,20 @@ enum OutputSampleRate {
         } catch {
             log.error("sample-rate request refused: \(error.localizedDescription, privacy: .public)")
         }
+    }
+    #endif
+}
+
+/// Picks the output-device rate for a source file (macOS rate matching).
+/// Pure, so it's testable on any platform.
+enum OutputRateMatch {
+    /// The source rate itself when the device supports it; otherwise the
+    /// highest supported integer multiple (44.1 kHz → 88.2/176.4, never 48),
+    /// which the system converts cleanly; otherwise `nil` (leave the device).
+    static func bestRate(for source: Double, supported: [ClosedRange<Double>]) -> Double? {
+        guard source > 0 else { return nil }
+        func ok(_ rate: Double) -> Bool { supported.contains { $0.lowerBound - 1 <= rate && rate <= $0.upperBound + 1 } }
+        if ok(source) { return source }
+        return (2...8).reversed().map { source * Double($0) }.first(where: ok)
     }
 }

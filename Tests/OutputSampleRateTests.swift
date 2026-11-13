@@ -67,4 +67,24 @@ final class OutputSampleRateTests: XCTestCase {
         let rate = await OutputSampleRate.sourceRate(of: AVURLAsset(url: url))
         XCTAssertEqual(rate ?? 0, 44_100, accuracy: 1)
     }
+
+    // MARK: - macOS rate matching
+
+    func test_rateMatch_exactWhenSupported() {
+        let dac: [ClosedRange<Double>] = [44_100...44_100, 48_000...48_000, 88_200...88_200,
+                                          96_000...96_000, 176_400...176_400, 192_000...192_000]
+        XCTAssertEqual(OutputRateMatch.bestRate(for: 44_100, supported: dac), 44_100)
+        XCTAssertEqual(OutputRateMatch.bestRate(for: 96_000, supported: dac), 96_000)
+        XCTAssertEqual(OutputRateMatch.bestRate(for: 192_000, supported: dac), 192_000)
+        // Continuous range (some USB DACs report one).
+        XCTAssertEqual(OutputRateMatch.bestRate(for: 88_200, supported: [8_000...384_000]), 88_200)
+    }
+
+    func test_rateMatch_integerMultipleOrNothing() {
+        let fortyEightOnly: [ClosedRange<Double>] = [48_000...48_000, 96_000...96_000]
+        XCTAssertNil(OutputRateMatch.bestRate(for: 44_100, supported: fortyEightOnly), "never 44.1 → 48")
+        XCTAssertEqual(OutputRateMatch.bestRate(for: 48_000, supported: [96_000...96_000, 192_000...192_000]), 192_000)
+        XCTAssertEqual(OutputRateMatch.bestRate(for: 44_100, supported: [88_200...88_200]), 88_200)
+        XCTAssertNil(OutputRateMatch.bestRate(for: 0, supported: fortyEightOnly))
+    }
 }

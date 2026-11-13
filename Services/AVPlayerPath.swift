@@ -91,6 +91,10 @@ final class AVPlayerPath {
         // slider is a separate shift on top of this, in the tap.
         playerItem?.audioTimePitchAlgorithm = .varispeed
         avPlayer = AVPlayer(playerItem: playerItem)
+        avPlayer?.volume = volume
+        #if os(macOS)
+        avPlayer?.audioOutputDeviceUniqueID = CoreAudioHAL.playerDeviceUID
+        #endif
         // Still let AVPlayer briefly wait for a minimal buffer rather than
         // starting and instantly stalling; the small preferredForwardBufferDuration
         // above keeps that wait short.
@@ -274,6 +278,23 @@ final class AVPlayerPath {
 
     /// Selected playback speed, applied to the current and all future items.
     private(set) var playbackRate: Float = 1.0
+
+    #if os(macOS)
+    /// Points the player at the chosen output device. Returns whether it
+    /// actually changed (re-setting the same UID would reconfigure audio).
+    func applyOutputDevice() -> Bool {
+        let uid = CoreAudioHAL.playerDeviceUID
+        guard let avPlayer, avPlayer.audioOutputDeviceUniqueID != uid else { return false }
+        avPlayer.audioOutputDeviceUniqueID = uid
+        return true
+    }
+    #endif
+
+    /// In-app volume (0…1), carried across items. Applied by AVPlayer at
+    /// render time, so changes are heard immediately.
+    var volume: Float = 1 {
+        didSet { avPlayer?.volume = volume }
+    }
 
     /// Change the playback speed. Updates `defaultRate` so `play()` resumes at
     /// the chosen speed, and applies it live if currently playing. When paused,

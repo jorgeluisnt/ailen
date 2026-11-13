@@ -58,7 +58,7 @@ struct EqualizerView: View {
             .navigationTitle("Ecualizador")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .topBarTrailing) {
                     Button("Listo") { dismiss() }
                         .foregroundColor(themeManager.theme.accentColor)
                 }
