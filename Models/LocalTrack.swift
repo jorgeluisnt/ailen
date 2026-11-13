@@ -39,6 +39,17 @@ struct LocalTrack: Identifiable, Codable, Hashable {
     /// were recorded.
     let folderPath: String?
     let isMissing: Bool
+    /// Bookmark to the original file in Files, recorded at import so
+    /// "Eliminar del disco" can delete it. `nil` for tracks imported before
+    /// this existed (or when iOS refused the bookmark).
+    let sourceBookmark: Data?
+    /// Absolute path of a file the library *references* in place (macOS:
+    /// your music folder) instead of a copy in the app's library directory.
+    /// `nil` = copied. Referenced files are never deleted by "Eliminar de la
+    /// biblioteca"; access comes from the folder bookmark kept by the manager.
+    let externalPath: String?
+
+    var isReference: Bool { externalPath != nil }
 
     /// The genre to show or group by; `nil` when the file has none.
     var displayGenre: String? { genre?.isEmpty == false ? genre : nil }
@@ -55,7 +66,9 @@ struct LocalTrack: Identifiable, Codable, Hashable {
         album: String? = nil,
         genre: String? = nil,
         folderPath: String? = nil,
-        isMissing: Bool = false
+        isMissing: Bool = false,
+        sourceBookmark: Data? = nil,
+        externalPath: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -69,13 +82,16 @@ struct LocalTrack: Identifiable, Codable, Hashable {
         self.genre = genre
         self.folderPath = folderPath
         self.isMissing = isMissing
+        self.sourceBookmark = sourceBookmark
+        self.externalPath = externalPath
     }
 
     func withGenre(_ genre: String) -> LocalTrack {
         LocalTrack(id: id, title: title, artist: artist, artworkFileName: artworkFileName,
                    fileName: fileName, importedAt: importedAt, fileSizeBytes: fileSizeBytes,
                    durationSeconds: durationSeconds, album: album, genre: genre,
-                   folderPath: folderPath, isMissing: isMissing)
+                   folderPath: folderPath, isMissing: isMissing, sourceBookmark: sourceBookmark,
+                   externalPath: externalPath)
     }
 
     // MARK: - Codable migration
@@ -85,7 +101,7 @@ struct LocalTrack: Identifiable, Codable, Hashable {
         case artworkFileName
         /// Legacy key: older builds persisted an absolute `URL` here.
         case artworkURL
-        case fileName, importedAt, fileSizeBytes, durationSeconds, album, genre, folderPath, isMissing
+        case fileName, importedAt, fileSizeBytes, durationSeconds, album, genre, folderPath, isMissing, sourceBookmark, externalPath
     }
 
     init(from decoder: Decoder) throws {
@@ -101,6 +117,8 @@ struct LocalTrack: Identifiable, Codable, Hashable {
         genre = try container.decodeIfPresent(String.self, forKey: .genre)
         folderPath = try container.decodeIfPresent(String.self, forKey: .folderPath)
         isMissing = try container.decodeIfPresent(Bool.self, forKey: .isMissing) ?? false
+        sourceBookmark = try container.decodeIfPresent(Data.self, forKey: .sourceBookmark)
+        externalPath = try container.decodeIfPresent(String.self, forKey: .externalPath)
 
         // Prefer the new relative field; otherwise migrate from the legacy
         // absolute `artworkURL` by keeping only its last path component
@@ -135,6 +153,8 @@ struct LocalTrack: Identifiable, Codable, Hashable {
         try container.encodeIfPresent(genre, forKey: .genre)
         try container.encodeIfPresent(folderPath, forKey: .folderPath)
         try container.encode(isMissing, forKey: .isMissing)
+        try container.encodeIfPresent(sourceBookmark, forKey: .sourceBookmark)
+        try container.encodeIfPresent(externalPath, forKey: .externalPath)
         // Note: the legacy `artworkURL` key is intentionally never written.
     }
 
