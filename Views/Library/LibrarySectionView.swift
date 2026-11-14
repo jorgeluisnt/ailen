@@ -57,6 +57,7 @@ struct LibrarySectionView: View {
                                 .frame(width: 40, height: 44)
                                 .contentShape(Rectangle())
                         }
+                        .plainMenu()
                         .accessibilityLabel("Más opciones para \(track.title)")
                     }
                 }

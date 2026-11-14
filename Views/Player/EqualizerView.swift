@@ -214,6 +214,7 @@ struct EqualizerView: View {
                 .padding(.vertical, DS.Spacing.sm)
                 .glassSurface(in: RoundedRectangle(cornerRadius: 12, style: .continuous), interactive: true)
             }
+            .plainMenu()
             .accessibilityLabel("Preset: \(current?.displayName ?? "Personalizado")")
         }
         .padding(.horizontal, DS.Spacing.lg)

@@ -160,6 +160,7 @@ struct PlaylistsView: View {
                         Circle().fill(tokens.surface)
                     )
             }
+            .plainMenu()
             .accessibilityLabel("Ordenar listas")
 
             Button {

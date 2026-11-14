@@ -41,10 +41,22 @@ extension View {
     func navigationBarTitleDisplayMode(_ mode: NavigationBarItem.TitleDisplayMode) -> some View { self }
 }
 
+extension View {
+    /// In-content menus (row "⋯", sort, presets) as on iOS: just their own
+    /// label — no Mac pop-up border, no extra chevron. Not for toolbar menus.
+    func plainMenu() -> some View {
+        menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+    }
+}
+
 #else
 import UIKit
 
 typealias PlatformImage = UIImage
+
+extension View {
+    func plainMenu() -> some View { self }
+}
 
 extension Image {
     init(platformImage: UIImage) { self.init(uiImage: platformImage) }

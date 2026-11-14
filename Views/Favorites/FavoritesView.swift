@@ -230,6 +230,7 @@ struct FavoritesView: View {
                 .frame(width: 32, height: 32)
                 .contentShape(Rectangle())
         }
+        .plainMenu()
         .accessibilityLabel("Más acciones para \(track.title)")
     }
 }

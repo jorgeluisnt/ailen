@@ -253,6 +253,7 @@ struct SmartPlaylistEditorView: View {
                 }
                 .foregroundColor(tokens.accent)
             }
+            .plainMenu()
         }
         .padding(.horizontal, DS.Spacing.md)
         .padding(.vertical, DS.Spacing.sm)
